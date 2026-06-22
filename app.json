@@ -1,25 +1,49 @@
 {
   "expo": {
-    "name": "tripmatch-mobile",
+    "name": "TripMatch",
     "slug": "tripmatch-mobile",
     "version": "1.0.0",
+    "scheme": "tripmatch",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E2820"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "io.tripmatch.app"
     },
     "android": {
+      "package": "io.tripmatch.app",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1E2820",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      }
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#7DC42A"
+        }
+      ],
+      "expo-secure-store",
+      ["expo-image-picker", { "photosPermission": "Allow TripMatch to access your photos to update your profile picture." }],
+      ["expo-location", { "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you." }]
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
