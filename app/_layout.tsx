@@ -240,9 +240,16 @@ export default function RootLayout() {
         <Stack.Screen name="messages/[id]"   options={{ headerShown: true, title: 'Conversation' }} />
         <Stack.Screen name="notifications"    options={{ headerShown: true, title: 'Notifications' }} />
         <Stack.Screen name="trips/[id]"       options={{ headerShown: true, title: 'Trip Details' }} />
-        <Stack.Screen name="trips/create"     options={{ headerShown: true, title: 'Create Trip' }} />
-        <Stack.Screen name="profile/edit"     options={{ headerShown: true, title: 'Edit Profile' }} />
-        <Stack.Screen name="buddies/requests" options={{ headerShown: true, title: 'Buddy Requests' }} />
+        <Stack.Screen name="trips/create"          options={{ headerShown: true, title: 'Create Trip' }} />
+        <Stack.Screen name="profile/edit"          options={{ headerShown: true, title: 'Edit Profile' }} />
+        <Stack.Screen name="buddies/requests"      options={{ headerShown: true, title: 'Buddy Requests' }} />
+        <Stack.Screen name="kyc"                   options={{ headerShown: true, title: 'KYC Verification' }} />
+        <Stack.Screen name="profile/my-trips"      options={{ headerShown: true, title: 'My Trips' }} />
+        <Stack.Screen name="profile/travel-dna"    options={{ headerShown: true, title: 'Travel DNA' }} />
+        <Stack.Screen name="profile/achievements"  options={{ headerShown: true, title: 'Achievements' }} />
+        <Stack.Screen name="profile/bucket-list"   options={{ headerShown: true, title: 'Bucket List' }} />
+        <Stack.Screen name="profile/settings"      options={{ headerShown: true, title: 'Settings' }} />
+        <Stack.Screen name="trips/[id]/expenses"   options={{ headerShown: true, title: 'Expenses' }} />
       </Stack>
 
       {!startupDone && <StartupOverlay onDone={() => setStartupDone(true)} />}

@@ -22,6 +22,7 @@ export const Colors = {
 
   // Backgrounds
   bgBase: '#F0F5E8',
+  bgMist: '#F0F5E8',
   bgCard: '#FFFFFF',
   bgInput: '#F9FAFB',
 
