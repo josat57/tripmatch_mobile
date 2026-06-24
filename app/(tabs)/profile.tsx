@@ -56,12 +56,16 @@ export default function ProfileScreen() {
   };
 
   const MENU: MenuItem[] = [
-    { label: 'Edit Profile',       icon: 'person-outline',           onPress: () => router.push('/profile/edit') },
-    { label: 'Notifications',      icon: 'notifications-outline',    onPress: () => router.push('/notifications') },
-    { label: 'Buddy Requests',     icon: 'people-outline',           onPress: () => router.push('/buddies/requests') },
-    { label: 'My Trips',           icon: 'map-outline',              onPress: () => router.push('/(tabs)/trips') },
-    { label: 'Create a Trip',      icon: 'add-circle-outline',       onPress: () => router.push('/trips/create') },
-    { label: 'Messages',           icon: 'chatbubbles-outline',      onPress: () => router.push('/(tabs)/messages') },
+    { label: 'Edit Profile',       icon: 'person-outline',              onPress: () => router.push('/profile/edit') },
+    { label: 'My Trips',           icon: 'map-outline',                 onPress: () => router.push('/profile/my-trips') },
+    { label: 'Bucket List',        icon: 'bookmark-outline',            onPress: () => router.push('/profile/bucket-list') },
+    { label: 'Travel DNA',         icon: 'analytics-outline',           onPress: () => router.push('/profile/travel-dna') },
+    { label: 'Achievements',       icon: 'trophy-outline',              onPress: () => router.push('/profile/achievements') },
+    { label: 'Buddy Requests',     icon: 'people-outline',              onPress: () => router.push('/buddies/requests') },
+    { label: 'Notifications',      icon: 'notifications-outline',       onPress: () => router.push('/notifications') },
+    { label: 'Messages',           icon: 'chatbubbles-outline',         onPress: () => router.push('/(tabs)/messages') },
+    { label: 'Create a Trip',      icon: 'add-circle-outline',          onPress: () => router.push('/trips/create') },
+    { label: 'Settings',           icon: 'settings-outline',            onPress: () => router.push('/profile/settings') },
   ];
 
   return (

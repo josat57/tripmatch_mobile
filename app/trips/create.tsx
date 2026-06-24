@@ -7,10 +7,18 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Trips } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
+import DatePickerModal from '../../src/components/DatePickerModal';
 
 const CATEGORIES = ['Adventure', 'Relaxation', 'Cultural', 'Business', 'Educational', 'Other'];
 const TRAVEL_STYLES = ['Adventure', 'Cultural', 'Luxury', 'Budget', 'Backpacking', 'Beach', 'Hiking', 'Wellness'];
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD', 'CAD'];
+
+function formatDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function CreateTripScreen() {
   const [loading, setLoading] = useState(false);
@@ -21,6 +29,7 @@ export default function CreateTripScreen() {
   const [country, setCountry]         = useState('');
   const [startDate, setStartDate]     = useState('');
   const [endDate, setEndDate]         = useState('');
+  const [pickerOpen, setPickerOpen]   = useState<'start' | 'end' | null>(null);
   const [budgetAmount, setBudgetAmount] = useState('');
   const [currency, setCurrency]       = useState('USD');
   const [maxPax, setMaxPax]           = useState('');
@@ -174,28 +183,40 @@ export default function CreateTripScreen() {
           <Text style={styles.sectionLabel}>Dates</Text>
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Start (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="2025-03-01"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={styles.label}>Start date</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setPickerOpen('start')}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+                <Text style={[styles.dateBtnText, !startDate && styles.datePlaceholder]}>
+                  {startDate || 'Pick date'}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>End (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="2025-03-14"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={styles.label}>End date</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setPickerOpen('end')}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+                <Text style={[styles.dateBtnText, !endDate && styles.datePlaceholder]}>
+                  {endDate || 'Pick date'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
+
+          <DatePickerModal
+            visible={pickerOpen === 'start'}
+            value={startDate ? new Date(startDate) : null}
+            title="Start date"
+            onCancel={() => setPickerOpen(null)}
+            onConfirm={(d) => { setStartDate(formatDate(d)); setPickerOpen(null); }}
+          />
+          <DatePickerModal
+            visible={pickerOpen === 'end'}
+            value={endDate ? new Date(endDate) : null}
+            title="End date"
+            minimumDate={startDate ? new Date(startDate) : undefined}
+            onCancel={() => setPickerOpen(null)}
+            onConfirm={(d) => { setEndDate(formatDate(d)); setPickerOpen(null); }}
+          />
 
           <Text style={styles.sectionLabel}>Budget (per person)</Text>
           <View style={styles.row}>
@@ -297,6 +318,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginRight: 6,
   },
+  dateBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11, backgroundColor: Colors.bgInput,
+  },
+  dateBtnText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.textDark },
+  datePlaceholder: { color: Colors.textLight },
   row: { flexDirection: 'row', gap: 10 },
   submitBtn: {
     marginTop: 16,

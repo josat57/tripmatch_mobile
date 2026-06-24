@@ -83,6 +83,12 @@ export default function LoginScreen() {
           </View>
         </View>
 
+        <Link href="/(auth)/forgot-password" asChild>
+          <TouchableOpacity style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
+        </Link>
+
         <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
           {loading ? (
             <ActivityIndicator color={Colors.white} />
@@ -169,6 +175,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     color: Colors.white,
   },
+  forgotBtn: { alignItems: 'flex-end', marginTop: 6, marginBottom: 4 },
+  forgotText: { fontSize: 13, fontFamily: Fonts.body, color: Colors.primaryDark },
   link: { alignItems: 'center', marginTop: 20 },
   linkText: {
     fontSize: 14,

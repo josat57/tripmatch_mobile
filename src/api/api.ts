@@ -77,6 +77,22 @@ api.interceptors.response.use(
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const Auth = {
+  forgotPassword: async (email: string) => {
+    const res = await api.post('/auth/forgot_password', { email });
+    return unwrap(res);
+  },
+  verifyOTP: async (email: string, otp: string) => {
+    const res = await api.post('/auth/verify_otp', { email, otp });
+    return unwrap(res);
+  },
+  resetPassword: async (resetToken: string, password: string) => {
+    const res = await api.post('/auth/reset_password', { resetToken, password });
+    return unwrap(res);
+  },
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await api.post('/auth/change_password', { currentPassword, newPassword });
+    return unwrap(res);
+  },
   register: async (data: {
     firstName: string;
     lastName: string;
@@ -264,8 +280,16 @@ export const Users = {
     const res = await api.post(`/users/block/${userId}`);
     return unwrap(res);
   },
+  unblock: async (userId: string) => {
+    const res = await api.post(`/users/unblock/${userId}`);
+    return unwrap(res);
+  },
   report: async (userId: string, reason: string, details?: string) => {
     const res = await api.post(`/users/report/${userId}`, { reason, details });
+    return unwrap(res);
+  },
+  getById: async (userId: string) => {
+    const res = await api.get(`/users/${userId}`);
     return unwrap(res);
   },
   getTravelDNA: async (userId: string) => {
@@ -274,6 +298,103 @@ export const Users = {
   },
   getAchievements: async (userId: string) => {
     const res = await api.get(`/users/${userId}/achievements`);
+    return unwrap(res);
+  },
+  getAchievementDefinitions: async () => {
+    const res = await api.get('/users/achievements/definitions');
+    return unwrap(res);
+  },
+  checkAchievements: async () => {
+    const res = await api.post('/users/me/achievements/check');
+    return unwrap(res);
+  },
+  getStats: async () => {
+    const res = await api.get('/users/me/stats');
+    return unwrap(res);
+  },
+  getBucketList: async () => {
+    const res = await api.get('/users/me/bucket-list');
+    return unwrap(res);
+  },
+  addToBucketList: async (destination: string, country?: string) => {
+    const res = await api.post('/users/me/bucket-list', { destination, country });
+    return unwrap(res);
+  },
+  removeFromBucketList: async (destination: string) => {
+    const res = await api.delete(`/users/me/bucket-list/${encodeURIComponent(destination)}`);
+    return unwrap(res);
+  },
+  updateNotificationPreferences: async (prefs: Record<string, boolean>) => {
+    const res = await api.put('/users/notification_preferences', prefs);
+    return unwrap(res);
+  },
+  updatePrivacySettings: async (settings: Record<string, unknown>) => {
+    const res = await api.put('/users/privacy_settings', settings);
+    return unwrap(res);
+  },
+  deleteAccount: async () => {
+    const res = await api.delete('/users/delete_account');
+    return unwrap(res);
+  },
+};
+
+// ── KYC ───────────────────────────────────────────────────────────────────────
+export const KYC = {
+  getStatus: async () => {
+    const res = await api.get('/kyc/status');
+    return unwrap(res);
+  },
+  upload: async (data: {
+    type: 'passport' | 'national_id' | 'driver_license';
+    number: string;
+    frontImage: string;
+    backImage?: string;
+    selfieImage: string;
+    expiresAt: string;
+    country: string;
+    issuedAt?: string;
+    placeOfBirth?: string;
+    placeOfIssue?: string;
+  }) => {
+    const res = await api.post('/kyc/upload', data);
+    return unwrap(res);
+  },
+  resubmit: async (data: Record<string, unknown>) => {
+    const res = await api.post('/kyc/resubmit', data);
+    return unwrap(res);
+  },
+};
+
+// ── Trip Expenses ─────────────────────────────────────────────────────────────
+export const Expenses = {
+  list: async (tripId: string) => {
+    const res = await api.get(`/trips/${tripId}/expenses`);
+    return unwrap(res);
+  },
+  add: async (tripId: string, data: {
+    description: string;
+    amount: number;
+    category: 'food' | 'transport' | 'accommodation' | 'activities' | 'other';
+    splitBetween: { user: string; share: number }[];
+    date?: string;
+  }) => {
+    const res = await api.post(`/trips/${tripId}/expenses`, data);
+    return unwrap(res);
+  },
+  settle: async (tripId: string, expenseId: string) => {
+    const res = await api.post(`/trips/${tripId}/expenses/${expenseId}/settle`);
+    return unwrap(res);
+  },
+  delete: async (tripId: string, expenseId: string) => {
+    const res = await api.delete(`/trips/${tripId}/expenses/${expenseId}`);
+    return unwrap(res);
+  },
+};
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+export const Calendar = {
+  getEvents: async () => {
+    const res = await api.get('/calendar/events');
     return unwrap(res);
   },
 };

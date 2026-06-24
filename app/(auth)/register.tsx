@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -201,6 +201,18 @@ export default function RegisterScreen() {
                 }
               </TouchableOpacity>
             </View>
+
+            <Text style={styles.tosText}>
+              By creating an account you agree to our{' '}
+              <Text style={styles.tosLink} onPress={() => Linking.openURL('https://tripmatch.io/terms')}>
+                Terms of Service
+              </Text>
+              {' '}and{' '}
+              <Text style={styles.tosLink} onPress={() => Linking.openURL('https://tripmatch.io/privacy')}>
+                Privacy Policy
+              </Text>
+              .
+            </Text>
           </>
         )}
 
@@ -299,4 +311,6 @@ const styles = StyleSheet.create({
   link: { alignItems: 'center', marginTop: 24 },
   linkText: { fontSize: 14, fontFamily: Fonts.body, color: Colors.textMuted },
   linkBold: { fontFamily: Fonts.bodyBold, color: Colors.primaryDark },
+  tosText: { fontSize: 12, fontFamily: Fonts.body, color: Colors.textMuted, textAlign: 'center', marginTop: 16, lineHeight: 18 },
+  tosLink: { color: Colors.primaryDark, fontFamily: Fonts.bodySemiBold },
 });
