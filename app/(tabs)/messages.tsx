@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, RefreshControl, AppState,
+  ActivityIndicator, RefreshControl, AppState,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Messaging } from '../../src/api/api';

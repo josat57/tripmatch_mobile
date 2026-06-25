@@ -178,6 +178,16 @@ export const Messaging = {
     const res = await api.get('/messaging/ws-token');
     return unwrap(res) as { token: string };
   },
+  uploadImage: async (uri: string) => {
+    const filename = uri.split('/').pop() ?? 'photo.jpg';
+    const ext = /\.(\w+)$/.exec(filename)?.[1] ?? 'jpeg';
+    const formData = new FormData();
+    formData.append('image', { uri, name: filename, type: `image/${ext}` } as unknown as Blob);
+    const res = await api.post('/uploads/upload_profile_image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(res) as { imageUrl: string };
+  },
 };
 
 // ── Trips ─────────────────────────────────────────────────────────────────────
@@ -228,6 +238,16 @@ export const Trips = {
   },
   addReview: async (tripId: string, rating: number, comment: string) => {
     const res = await api.post(`/trips/${tripId}/reviews`, { rating, comment });
+    return unwrap(res);
+  },
+  addPhotos: async (tripId: string, uri: string) => {
+    const filename = uri.split('/').pop() ?? 'photo.jpg';
+    const ext = /\.(\w+)$/.exec(filename)?.[1] ?? 'jpeg';
+    const formData = new FormData();
+    formData.append('photos', { uri, name: filename, type: `image/${ext}` } as unknown as Blob);
+    const res = await api.post(`/uploads/add_trip_photos/${tripId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return unwrap(res);
   },
 };

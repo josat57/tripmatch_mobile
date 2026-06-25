@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Animated, Image, Platform, StyleSheet } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
 import { DMSans_600SemiBold } from '@expo-google-fonts/dm-sans/600SemiBold';
@@ -20,6 +21,13 @@ import { Colors, Fonts } from '../src/theme';
 import type * as NotificationsNS from 'expo-notifications';
 
 SplashScreen.preventAutoHideAsync();
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
+  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  environment: __DEV__ ? 'development' : 'production',
+  tracesSampleRate: __DEV__ ? 0 : 0.2,
+});
 
 // expo-notifications throws during module initialisation in Expo Go on Android (SDK 53+).
 // Use a conditional require so the native module is never loaded on that platform.
@@ -193,7 +201,7 @@ const startupStyles = StyleSheet.create({
 
 // ─── Root layout ─────────────────────────────────────────────────────────────
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
     DMSans_600SemiBold,
@@ -256,3 +264,5 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

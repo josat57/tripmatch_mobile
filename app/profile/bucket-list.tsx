@@ -87,7 +87,7 @@ export default function BucketListScreen() {
           </Text>
         )}
       </View>
-      <TouchableOpacity onPress={() => handleDelete(item.destination)} style={styles.deleteBtn}>
+      <TouchableOpacity onPress={() => handleDelete(item.destination)} style={styles.deleteBtn} accessibilityLabel={`Remove ${item.destination} from bucket list`}>
         <Ionicons name="trash-outline" size={18} color={Colors.error} />
       </TouchableOpacity>
     </View>
@@ -100,7 +100,7 @@ export default function BucketListScreen() {
           title: 'Bucket List',
           headerShown: true,
           headerRight: () => (
-            <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 4 }}>
+            <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 4 }} accessibilityLabel="Add to bucket list">
               <Ionicons name="add-circle-outline" size={26} color={Colors.primary} />
             </TouchableOpacity>
           ),

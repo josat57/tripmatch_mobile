@@ -77,7 +77,7 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
 
-        <TouchableOpacity style={styles.back} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.back} onPress={() => router.back()} accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={22} color={Colors.textDark} />
         </TouchableOpacity>
 
@@ -160,7 +160,7 @@ export default function ForgotPasswordScreen() {
                   placeholder="At least 8 characters"
                   placeholderTextColor={Colors.textLight}
                 />
-                <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn} accessibilityLabel={showPass ? 'Hide password' : 'Show password'}>
                   <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
                 </TouchableOpacity>
               </View>
@@ -176,7 +176,7 @@ export default function ForgotPasswordScreen() {
                   placeholder="Repeat password"
                   placeholderTextColor={Colors.textLight}
                 />
-                <TouchableOpacity onPress={() => setShowConfirm((p) => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity onPress={() => setShowConfirm((p) => !p)} style={styles.eyeBtn} accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}>
                   <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
                 </TouchableOpacity>
               </View>

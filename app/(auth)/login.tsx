@@ -77,7 +77,7 @@ export default function LoginScreen() {
               placeholder="••••••••"
               placeholderTextColor={Colors.textLight}
             />
-            <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+            <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn} accessibilityLabel={showPass ? 'Hide password' : 'Show password'}>
               <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
             </TouchableOpacity>
           </View>

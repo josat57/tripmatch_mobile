@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, Image,
+  Alert, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -19,7 +20,7 @@ interface MenuItem {
 }
 
 export default function ProfileScreen() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout } = useAuth();
   const [signingOut, setSigningOut]         = useState(false);
   const [resending, setResending]           = useState(false);
 
@@ -57,21 +58,21 @@ export default function ProfileScreen() {
 
   const MENU: MenuItem[] = [
     { label: 'Edit Profile',       icon: 'person-outline',              onPress: () => router.push('/profile/edit') },
-    { label: 'My Trips',           icon: 'map-outline',                 onPress: () => router.push('/profile/my-trips') },
-    { label: 'Bucket List',        icon: 'bookmark-outline',            onPress: () => router.push('/profile/bucket-list') },
-    { label: 'Travel DNA',         icon: 'analytics-outline',           onPress: () => router.push('/profile/travel-dna') },
-    { label: 'Achievements',       icon: 'trophy-outline',              onPress: () => router.push('/profile/achievements') },
+    { label: 'My Trips',           icon: 'map-outline',                 onPress: () => router.push('/profile/my-trips' as never) },
+    { label: 'Bucket List',        icon: 'bookmark-outline',            onPress: () => router.push('/profile/bucket-list' as never) },
+    { label: 'Travel DNA',         icon: 'analytics-outline',           onPress: () => router.push('/profile/travel-dna' as never) },
+    { label: 'Achievements',       icon: 'trophy-outline',              onPress: () => router.push('/profile/achievements' as never) },
     { label: 'Buddy Requests',     icon: 'people-outline',              onPress: () => router.push('/buddies/requests') },
     { label: 'Notifications',      icon: 'notifications-outline',       onPress: () => router.push('/notifications') },
     { label: 'Messages',           icon: 'chatbubbles-outline',         onPress: () => router.push('/(tabs)/messages') },
     { label: 'Create a Trip',      icon: 'add-circle-outline',          onPress: () => router.push('/trips/create') },
-    { label: 'Settings',           icon: 'settings-outline',            onPress: () => router.push('/profile/settings') },
+    { label: 'Settings',           icon: 'settings-outline',            onPress: () => router.push('/profile/settings' as never) },
   ];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/profile/edit')} style={styles.avatarWrap}>
+        <TouchableOpacity onPress={() => router.push('/profile/edit')} style={styles.avatarWrap} accessibilityLabel="Edit profile photo">
           {user?.profileImage ? (
             <Image source={{ uri: user.profileImage }} style={styles.avatar} />
           ) : (

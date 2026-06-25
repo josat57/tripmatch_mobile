@@ -101,7 +101,7 @@ export default function SettingsScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Change Password', headerShown: true, headerLeft: () => (
-          <TouchableOpacity onPress={() => setSection('main')}><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setSection('main')} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
         )}} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -115,7 +115,7 @@ export default function SettingsScreen() {
                 <View style={styles.inputWrap}>
                   <TextInput style={styles.inputWithIcon} value={val} onChangeText={set}
                     secureTextEntry={!show} placeholder="••••••••" placeholderTextColor={Colors.textLight} />
-                  <TouchableOpacity onPress={toggle} style={styles.eyeBtn}>
+                  <TouchableOpacity onPress={toggle} style={styles.eyeBtn} accessibilityLabel={show ? 'Hide password' : 'Show password'}>
                     <Ionicons name={show ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
                   </TouchableOpacity>
                 </View>
@@ -134,7 +134,7 @@ export default function SettingsScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Notifications', headerShown: true, headerLeft: () => (
-          <TouchableOpacity onPress={() => setSection('main')}><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setSection('main')} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
         )}} />
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
           {(Object.entries(notifPrefs) as [keyof typeof notifPrefs, boolean][]).map(([key, value]) => (
@@ -156,7 +156,7 @@ export default function SettingsScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Privacy', headerShown: true, headerLeft: () => (
-          <TouchableOpacity onPress={() => setSection('main')}><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setSection('main')} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
         )}} />
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
           <Text style={styles.sectionLabel}>Profile visibility</Text>
@@ -193,7 +193,7 @@ export default function SettingsScreen() {
           { icon: 'lock-closed-outline', label: 'Change password',          onPress: () => setSection('password') },
           { icon: 'notifications-outline', label: 'Notification preferences', onPress: () => setSection('notifications') },
           { icon: 'shield-checkmark-outline', label: 'Privacy settings',     onPress: () => setSection('privacy') },
-          { icon: 'card-outline', label: 'KYC Verification',                 onPress: () => router.push('/kyc') },
+          { icon: 'card-outline', label: 'KYC Verification',                 onPress: () => router.push('/kyc' as never) },
         ].map(({ icon, label, onPress }) => (
           <TouchableOpacity key={label} style={styles.menuItem} onPress={onPress}>
             <Ionicons name={icon as React.ComponentProps<typeof Ionicons>['name']} size={20} color={Colors.textBody} />

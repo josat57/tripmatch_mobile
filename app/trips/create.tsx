@@ -3,8 +3,10 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Trips } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 import DatePickerModal from '../../src/components/DatePickerModal';
@@ -23,6 +25,7 @@ function formatDate(d: Date) {
 export default function CreateTripScreen() {
   const [loading, setLoading] = useState(false);
 
+  const [coverUri, setCoverUri]       = useState<string | null>(null);
   const [title, setTitle]             = useState('');
   const [description, setDescription] = useState('');
   const [city, setCity]               = useState('');
@@ -35,6 +38,23 @@ export default function CreateTripScreen() {
   const [maxPax, setMaxPax]           = useState('');
   const [category, setCategory]       = useState('');
   const [styles2, setStyles2]         = useState<string[]>([]);
+
+  const pickCoverImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow photo library access to add a cover image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setCoverUri(result.assets[0].uri);
+    }
+  };
 
   const toggleStyle = (s: string) =>
     setStyles2((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
@@ -80,7 +100,12 @@ export default function CreateTripScreen() {
         payload.capacity = { max: Number(maxPax) };
       }
 
-      await Trips.create(payload);
+      const created = await Trips.create(payload);
+      const tripId = (created as { _id?: string; trip?: { _id?: string } })?.trip?._id
+        ?? (created as { _id?: string })._id;
+      if (tripId && coverUri) {
+        try { await Trips.addPhotos(tripId, coverUri); } catch {}
+      }
       Alert.alert('Trip created!', 'Your trip has been posted.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -103,6 +128,27 @@ export default function CreateTripScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+          {/* Cover photo */}
+          <TouchableOpacity
+            style={styles.coverPicker}
+            onPress={pickCoverImage}
+            accessibilityLabel="Pick cover photo"
+          >
+            {coverUri ? (
+              <Image source={{ uri: coverUri }} style={styles.coverImage} contentFit="cover" />
+            ) : (
+              <View style={styles.coverPlaceholder}>
+                <Ionicons name="image-outline" size={32} color={Colors.textLight} />
+                <Text style={styles.coverPlaceholderText}>Add cover photo (optional)</Text>
+              </View>
+            )}
+            {coverUri && (
+              <View style={styles.coverEditBadge}>
+                <Ionicons name="pencil" size={14} color={Colors.white} />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.field}>
             <Text style={styles.label}>Trip title *</Text>
@@ -337,4 +383,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitBtnText: { fontSize: 16, fontFamily: Fonts.bodyBold, color: Colors.white },
+  coverPicker: {
+    height: 160,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    position: 'relative',
+  },
+  coverImage: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.bgInput,
+  },
+  coverPlaceholderText: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textLight },
+  coverEditBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    padding: 6,
+  },
 });

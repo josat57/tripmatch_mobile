@@ -130,7 +130,7 @@ export default function RegisterScreen() {
                   placeholder="At least 8 characters"
                   placeholderTextColor={Colors.textLight}
                 />
-                <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn} accessibilityLabel={showPass ? 'Hide password' : 'Show password'}>
                   <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
                 </TouchableOpacity>
               </View>
@@ -148,7 +148,7 @@ export default function RegisterScreen() {
                   placeholder="Repeat your password"
                   placeholderTextColor={Colors.textLight}
                 />
-                <TouchableOpacity onPress={() => setShowConfirm((p) => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity onPress={() => setShowConfirm((p) => !p)} style={styles.eyeBtn} accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}>
                   <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
                 </TouchableOpacity>
               </View>

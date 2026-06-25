@@ -39,11 +39,28 @@
         }
       ],
       "expo-secure-store",
-      ["expo-image-picker", { "photosPermission": "Allow TripMatch to access your photos to update your profile picture." }],
-      ["expo-location", { "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you." }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TripMatch to access your photos to update your profile picture."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you."
+        }
+      ],
+      "expo-image",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }

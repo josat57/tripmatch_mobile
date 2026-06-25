@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Modal, TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Trips, Users } from '../../src/api/api';
@@ -58,6 +59,13 @@ export default function TripDetailScreen() {
   const [tab, setTab]               = useState<Tab>('info');
   const [joining, setJoining]       = useState(false);
   const [acting, setActing]         = useState<Set<string>>(new Set());
+
+  // Review state
+  const [reviewVisible, setReviewVisible]       = useState(false);
+  const [reviewRating, setReviewRating]         = useState(0);
+  const [reviewComment, setReviewComment]       = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewDone, setReviewDone]             = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -147,6 +155,26 @@ export default function TripDetailScreen() {
     ]);
   };
 
+  const submitReview = async () => {
+    if (!id || reviewRating === 0) {
+      Alert.alert('Rating required', 'Please tap a star to rate this trip.');
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await Trips.addReview(id, reviewRating, reviewComment.trim());
+      setReviewVisible(false);
+      setReviewRating(0);
+      setReviewComment('');
+      setReviewDone(true);
+      Alert.alert('Review submitted!', 'Thank you for sharing your experience.');
+    } catch {
+      Alert.alert('Error', 'Could not submit your review. Please try again.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   if (loading || !trip) {
     return (
       <>
@@ -160,6 +188,8 @@ export default function TripDetailScreen() {
 
   const isOrganizer = trip.organizer?._id === user?._id;
   const isParticipant = (trip.participants ?? []).some((p) => p._id === user?._id);
+  const tripEnded = trip.endDate ? new Date(trip.endDate) < new Date() : false;
+  const canReview = isParticipant && !isOrganizer && tripEnded && !reviewDone;
 
   const start = trip.startDate
     ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -188,6 +218,7 @@ export default function TripDetailScreen() {
               key={t.key}
               style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
               onPress={() => setTab(t.key)}
+              accessibilityLabel={t.label}
             >
               <Text style={[styles.tabBtnText, tab === t.key && styles.tabBtnTextActive]}>
                 {t.label}
@@ -286,12 +317,26 @@ export default function TripDetailScreen() {
                             avatar: trip.organizer!.profileImage ?? '',
                           },
                         })}
+                        accessibilityLabel={`Message ${trip.organizer.firstName}`}
                       >
                         <Ionicons name="chatbubble-outline" size={20} color={Colors.primary} />
                       </TouchableOpacity>
                     )}
                   </View>
                 </View>
+              )}
+
+              {/* Expenses link for members/organizer */}
+              {(isOrganizer || isParticipant) && (
+                <TouchableOpacity
+                  style={styles.expensesBtn}
+                  onPress={() => router.push({ pathname: '/trips/[id]/expenses' as never, params: { id } })}
+                  accessibilityLabel="View trip expenses"
+                >
+                  <Ionicons name="wallet-outline" size={18} color={Colors.ocean} />
+                  <Text style={styles.expensesBtnText}>Trip Expenses</Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.ocean} />
+                </TouchableOpacity>
               )}
 
               {!isOrganizer && !isParticipant && (
@@ -318,6 +363,25 @@ export default function TripDetailScreen() {
                 <View style={styles.joinedBadge}>
                   <Ionicons name="star-outline" size={18} color={Colors.primary} />
                   <Text style={[styles.joinedText, { color: Colors.primary }]}>You organised this trip</Text>
+                </View>
+              )}
+
+              {/* Leave a review (past participants only) */}
+              {canReview && (
+                <TouchableOpacity
+                  style={styles.reviewBtn}
+                  onPress={() => setReviewVisible(true)}
+                  accessibilityLabel="Leave a review for this trip"
+                >
+                  <Ionicons name="star-half-outline" size={18} color={Colors.primaryDark} />
+                  <Text style={styles.reviewBtnText}>Leave a Review</Text>
+                </TouchableOpacity>
+              )}
+
+              {reviewDone && (
+                <View style={styles.reviewDoneBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.forest} />
+                  <Text style={styles.reviewDoneText}>Review submitted — thank you!</Text>
                 </View>
               )}
             </>
@@ -349,10 +413,14 @@ export default function TripDetailScreen() {
                             pathname: '/messages/[id]',
                             params: { id: p._id, name: `${p.firstName} ${p.lastName}`, avatar: p.profileImage ?? '' },
                           })}
+                          accessibilityLabel={`Message ${p.firstName}`}
                         >
                           <Ionicons name="chatbubble-outline" size={20} color={Colors.primary} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleBlockReport(p._id, `${p.firstName} ${p.lastName}`)}>
+                        <TouchableOpacity
+                          onPress={() => handleBlockReport(p._id, `${p.firstName} ${p.lastName}`)}
+                          accessibilityLabel={`Report or block ${p.firstName}`}
+                        >
                           <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textLight} />
                         </TouchableOpacity>
                       </View>
@@ -414,6 +482,73 @@ export default function TripDetailScreen() {
           )}
         </ScrollView>
       </View>
+
+      {/* Review Modal */}
+      <Modal
+        visible={reviewVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReviewVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rate this Trip</Text>
+              <TouchableOpacity onPress={() => setReviewVisible(false)} accessibilityLabel="Close review">
+                <Ionicons name="close" size={22} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>How was your experience on {trip.title}?</Text>
+
+            {/* Star rating */}
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity
+                  key={star}
+                  onPress={() => setReviewRating(star)}
+                  accessibilityLabel={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <Ionicons
+                    name={reviewRating >= star ? 'star' : 'star-outline'}
+                    size={36}
+                    color={reviewRating >= star ? Colors.primary : Colors.border}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {reviewRating > 0 && (
+              <Text style={styles.ratingLabel}>
+                {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewRating]}
+              </Text>
+            )}
+
+            <TextInput
+              style={styles.reviewInput}
+              value={reviewComment}
+              onChangeText={setReviewComment}
+              placeholder="Share your experience (optional)…"
+              placeholderTextColor={Colors.textLight}
+              multiline
+              numberOfLines={4}
+              maxLength={500}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitReviewBtn, reviewRating === 0 && styles.submitReviewBtnDisabled]}
+              onPress={submitReview}
+              disabled={reviewSubmitting || reviewRating === 0}
+            >
+              {reviewSubmitting ? (
+                <ActivityIndicator color={Colors.white} />
+              ) : (
+                <Text style={styles.submitReviewBtnText}>Submit Review</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -519,6 +654,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rejectBtnText: { fontSize: 13, fontFamily: Fonts.bodySemiBold, color: Colors.textMuted },
+  expensesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 20,
+    backgroundColor: Colors.bgCard,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  expensesBtnText: { flex: 1, fontSize: 15, fontFamily: Fonts.bodySemiBold, color: Colors.ocean },
   joinBtn: {
     marginTop: 24,
     backgroundColor: Colors.primary,
@@ -531,7 +679,7 @@ const styles = StyleSheet.create({
   },
   joinBtnText: { fontSize: 16, fontFamily: Fonts.bodyBold, color: Colors.white },
   joinedBadge: {
-    marginTop: 24,
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -543,6 +691,83 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryLight,
   },
   joinedText: { fontSize: 14, fontFamily: Fonts.bodySemiBold, color: Colors.forest },
+  reviewBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryDark,
+    borderRadius: 12,
+    paddingVertical: 12,
+    backgroundColor: Colors.bgMist,
+  },
+  reviewBtnText: { fontSize: 14, fontFamily: Fonts.bodySemiBold, color: Colors.primaryDark },
+  reviewDoneBadge: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  reviewDoneText: { fontSize: 13, fontFamily: Fonts.body, color: Colors.forest },
   emptyCenter: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.textLight },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: Colors.bgCard,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  modalTitle: { fontSize: 18, fontFamily: Fonts.heading, color: Colors.textDark },
+  modalSub: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textMuted, marginBottom: 20 },
+  starsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  ratingLabel: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.primaryDark,
+    marginBottom: 16,
+  },
+  reviewInput: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: Fonts.body,
+    color: Colors.textDark,
+    backgroundColor: Colors.bgInput,
+    minHeight: 90,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  submitReviewBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  submitReviewBtnDisabled: { opacity: 0.5 },
+  submitReviewBtnText: { fontSize: 15, fontFamily: Fonts.bodyBold, color: Colors.white },
 });

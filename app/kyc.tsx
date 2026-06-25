@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform,
+  Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +48,7 @@ export default function KYCScreen() {
       .finally(() => setLoadingStatus(false));
   }, []);
 
-  const pickImage = async (setter: (uri: string) => void, label: string) => {
+  const pickImage = async (setter: (uri: string) => void) => {
     const { status: perm } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm !== 'granted') return Alert.alert('Permission needed', 'Please allow photo access.');
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true });
@@ -131,7 +132,7 @@ export default function KYCScreen() {
                   {/* Photo uploads */}
                   <Text style={styles.sectionTitle}>Document photos</Text>
                   <View style={styles.photoRow}>
-                    <TouchableOpacity style={styles.photoBox} onPress={() => pickImage(setFrontUri, 'front')}>
+                    <TouchableOpacity style={styles.photoBox} onPress={() => pickImage(setFrontUri)}>
                       {frontUri
                         ? <Image source={{ uri: frontUri }} style={styles.photoPreview} />
                         : <>
@@ -140,7 +141,7 @@ export default function KYCScreen() {
                           </>
                       }
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.photoBox} onPress={() => pickImage(setSelfieUri, 'selfie')}>
+                    <TouchableOpacity style={styles.photoBox} onPress={() => pickImage(setSelfieUri)}>
                       {selfieUri
                         ? <Image source={{ uri: selfieUri }} style={styles.photoPreview} />
                         : <>
