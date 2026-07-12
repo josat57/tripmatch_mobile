@@ -39,7 +39,7 @@ const PERMISSIONS = [
   },
   {
     icon: 'images' as const,
-    title: 'Photos & Camera',
+    title: 'Photos',
     body: 'Upload a profile photo and share memories from your adventures.',
     accent: Colors.forest,
   },
@@ -91,9 +91,8 @@ export default function PermissionsScreen() {
       // Location
       await Location.requestForegroundPermissionsAsync();
 
-      // Photos & Camera
+      // Photos (the app only ever picks from the library, never captures with the camera)
       await ImagePicker.requestMediaLibraryPermissionsAsync();
-      await ImagePicker.requestCameraPermissionsAsync();
     } finally {
       await AsyncStorage.setItem('hasSeenPermissions', '1');
       setLoading(false);

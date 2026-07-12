@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Messaging } from '../../src/api/api';
+import { Messaging, Users } from '../../src/api/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
@@ -42,20 +42,58 @@ export default function ConversationScreen() {
   const closedRef    = useRef(false);
   const delayRef     = useRef(WS_INITIAL_DELAY);
 
+  const handleBlockReport = useCallback(() => {
+    if (!recipientId) return;
+    const displayName = name ?? 'this user';
+    Alert.alert(`Report or block ${displayName}`, 'What would you like to do?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await Users.block(recipientId);
+            Alert.alert('Blocked', `${displayName} has been blocked.`, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          } catch {
+            Alert.alert('Error', 'Could not block user.');
+          }
+        },
+      },
+      {
+        text: 'Report user',
+        onPress: () => {
+          Alert.prompt('Report', 'Briefly describe the issue:', async (reason) => {
+            if (!reason) return;
+            try {
+              await Users.report(recipientId, reason);
+              Alert.alert('Reported', 'Thank you. Our team will review this.');
+            } catch {
+              Alert.alert('Error', 'Could not submit report.');
+            }
+          });
+        },
+      },
+    ]);
+  }, [recipientId, name, navigation]);
+
   useEffect(() => {
     if (!name) return;
     navigation.setOptions({
       title: name,
-      headerRight: avatar
-        ? () => (
-            <Image
-              source={{ uri: avatar }}
-              style={{ width: 32, height: 32, borderRadius: 16, marginRight: 12 }}
-            />
-          )
-        : undefined,
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+          ) : null}
+          <TouchableOpacity onPress={handleBlockReport} accessibilityLabel={`Report or block ${name}`}>
+            <Ionicons name="ellipsis-vertical" size={20} color={Colors.textDark} />
+          </TouchableOpacity>
+        </View>
+      ),
     });
-  }, [name, avatar, navigation]);
+  }, [name, avatar, navigation, handleBlockReport]);
 
   useEffect(() => {
     if (!recipientId) return;
@@ -314,6 +352,8 @@ export default function ConversationScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.mist },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14, marginRight: 12 },
+  headerAvatar: { width: 32, height: 32, borderRadius: 16 },
   messageList: { padding: 16, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   emptyText: {
     textAlign: 'center',

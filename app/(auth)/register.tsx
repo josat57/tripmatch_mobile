@@ -12,6 +12,9 @@ import { Colors, Fonts } from '../../src/theme';
 const TRAVEL_STYLES = ['Adventure', 'Cultural', 'Luxury', 'Budget', 'Backpacking', 'Beach', 'Hiking', 'Wellness'];
 const BUDGET_RANGES = ['Under $1k', '$1k–$3k', '$3k–$8k', '$8k–$20k', '$20k+'];
 
+// Legal pages are served by the API host itself (mounted at /legal, not under /api).
+const LEGAL_BASE = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:9000/api').replace(/\/api\/?$/, '');
+
 export default function RegisterScreen() {
   const { refreshUser } = useAuth();
   const [step, setStep]     = useState(1);
@@ -204,11 +207,11 @@ export default function RegisterScreen() {
 
             <Text style={styles.tosText}>
               By creating an account you agree to our{' '}
-              <Text style={styles.tosLink} onPress={() => Linking.openURL('https://tripmatch.io/terms')}>
+              <Text style={styles.tosLink} onPress={() => Linking.openURL(`${LEGAL_BASE}/legal/terms`)}>
                 Terms of Service
               </Text>
               {' '}and{' '}
-              <Text style={styles.tosLink} onPress={() => Linking.openURL('https://tripmatch.io/privacy')}>
+              <Text style={styles.tosLink} onPress={() => Linking.openURL(`${LEGAL_BASE}/legal/privacy`)}>
                 Privacy Policy
               </Text>
               .

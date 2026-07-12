@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Buddy } from '../../src/api/api';
+import { Buddy, Users } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 
 const DISMISSED_KEY = '@tripmatch_dismissed_matches';
@@ -85,6 +85,39 @@ export default function MatchesScreen() {
   const handleRefresh = useCallback(() => {
     loadMatches(dismissedRef.current, true);
   }, [loadMatches]);
+
+  const handleBlockReport = useCallback((targetUserId: string, name: string) => {
+    Alert.alert(`Report or block ${name}`, 'What would you like to do?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await Users.block(targetUserId);
+            dismiss(targetUserId);
+            Alert.alert('Blocked', `${name} has been blocked.`);
+          } catch {
+            Alert.alert('Error', 'Could not block user.');
+          }
+        },
+      },
+      {
+        text: 'Report user',
+        onPress: () => {
+          Alert.prompt('Report', 'Briefly describe the issue:', async (reason) => {
+            if (!reason) return;
+            try {
+              await Users.report(targetUserId, reason);
+              Alert.alert('Reported', 'Thank you. Our team will review this.');
+            } catch {
+              Alert.alert('Error', 'Could not submit report.');
+            }
+          });
+        },
+      },
+    ]);
+  }, [dismiss]);
 
   const sendRequest = async (userId: string) => {
     setSending((p) => new Set(p).add(userId));
@@ -202,6 +235,13 @@ export default function MatchesScreen() {
               >
                 <Text style={styles.passBtnText}>Pass</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.moreBtn}
+                onPress={() => handleBlockReport(match._id, `${match.firstName} ${match.lastName}`)}
+                accessibilityLabel={`Report or block ${match.firstName}`}
+              >
+                <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textLight} />
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -311,4 +351,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   passBtnText: { fontSize: 14, fontFamily: Fonts.bodySemiBold, color: Colors.textMuted },
+  moreBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
