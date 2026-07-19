@@ -475,4 +475,20 @@ export const TripComments = {
   },
 };
 
+// ── Payments / Badge ────────────────────────────────────────────────────────
+export const Payments = {
+  initiateBadgeCheckout: async () => {
+    const res = await api.post('/payments/badge/initiate');
+    return unwrap(res) as { provider: 'stripe' | 'flutterwave'; clientSecret?: string; reference?: string; amount: number };
+  },
+  verifyBadge: async (transactionId: string) => {
+    const res = await api.post('/payments/badge/verify', { transactionId });
+    return unwrap(res);
+  },
+  getBadgeStatus: async () => {
+    const res = await api.get('/kyc/badge');
+    return unwrap(res) as { active: boolean; tier: string; activatedAt: string | null };
+  },
+};
+
 export default api;

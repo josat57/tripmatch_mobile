@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { KYC } from '../src/api/api';
 import { Colors, Fonts } from '../src/theme';
+import VerifiedBadgeCard from '../src/components/VerifiedBadgeCard';
 
 type DocType = 'passport' | 'national_id' | 'driver_license';
 type KYCStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
@@ -165,9 +166,12 @@ export default function KYCScreen() {
               )}
 
               {status === 'approved' && (
-                <TouchableOpacity style={styles.doneBtn} onPress={() => router.back()}>
-                  <Text style={styles.doneBtnText}>Back to profile</Text>
-                </TouchableOpacity>
+                <>
+                  <VerifiedBadgeCard />
+                  <TouchableOpacity style={styles.doneBtn} onPress={() => router.back()}>
+                    <Text style={styles.doneBtnText}>Back to profile</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </>
           )}

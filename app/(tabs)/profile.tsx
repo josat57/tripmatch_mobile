@@ -60,6 +60,7 @@ export default function ProfileScreen() {
     { label: 'Edit Profile',       icon: 'person-outline',              onPress: () => router.push('/profile/edit') },
     { label: 'My Trips',           icon: 'map-outline',                 onPress: () => router.push('/profile/my-trips' as never) },
     { label: 'Saved Trips',        icon: 'heart-outline',               onPress: () => router.push('/profile/saved-trips' as never) },
+    { label: 'Verified Badge',     icon: 'shield-checkmark-outline',    onPress: () => router.push('/profile/badge' as never) },
     { label: 'Bucket List',        icon: 'bookmark-outline',            onPress: () => router.push('/profile/bucket-list' as never) },
     { label: 'Travel DNA',         icon: 'analytics-outline',           onPress: () => router.push('/profile/travel-dna' as never) },
     { label: 'Achievements',       icon: 'trophy-outline',              onPress: () => router.push('/profile/achievements' as never) },
