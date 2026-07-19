@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Notifications } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
+import ProfileCompletionModal from '../../src/components/ProfileCompletionModal';
+import { useProfileCompletion } from '../../src/hooks/useProfileCompletion';
 
 const QUICK_ACTIONS = [
   { label: 'Find Matches',   icon: 'people-outline'      as const, route: '/(tabs)/matches'  as const },
@@ -18,6 +20,8 @@ const QUICK_ACTIONS = [
 export default function HomeScreen() {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const { isProfileComplete, profileCompletionPercentage } = useProfileCompletion();
 
   const loadUnread = useCallback(async () => {
     try {
@@ -28,24 +32,48 @@ export default function HomeScreen() {
 
   useEffect(() => { loadUnread(); }, [loadUnread]);
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hey, {user?.firstName ?? 'Traveler'} ✈️</Text>
-          <Text style={styles.sub}>Ready to find your next travel companion?</Text>
-        </View>
-        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/notifications')}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.textBody} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+  // Show profile completion modal if profile is incomplete
+  useEffect(() => {
+    if (user && !isProfileComplete) {
+      setShowProfileCompletion(true);
+    }
+  }, [user, isProfileComplete]);
 
-      <View style={styles.card}>
+  return (
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hey, {user?.firstName ?? 'Traveler'} ✈️</Text>
+            <Text style={styles.sub}>Ready to find your next travel companion?</Text>
+          </View>
+          <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/notifications')}>
+            <Ionicons name="notifications-outline" size={24} color={Colors.textBody} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Profile Completion Banner */}
+        {!isProfileComplete && profileCompletionPercentage < 100 && (
+          <View style={styles.completionBanner}>
+            <View style={styles.completionHeader}>
+              <Text style={styles.completionTitle}>Complete your profile</Text>
+              <Text style={styles.completionPercent}>{profileCompletionPercentage}%</Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${profileCompletionPercentage}%` }]} />
+            </View>
+            <Text style={styles.completionHint}>
+              Unlock better matches and build trust in the community
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.card}>
         <Text style={styles.cardTitle}>Find your perfect match</Text>
         <Text style={styles.cardBody}>
           We've found travellers who share your style and budget. Discover them now.
@@ -77,7 +105,17 @@ export default function HomeScreen() {
           </Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+
+      {/* Profile Completion Modal */}
+      <ProfileCompletionModal
+        visible={showProfileCompletion}
+        onComplete={() => {
+          setShowProfileCompletion(false);
+          loadUnread();
+        }}
+      />
+    </>
   );
 }
 
@@ -154,4 +192,18 @@ const styles = StyleSheet.create({
   },
   verifyText: { flex: 1, fontSize: 13, fontFamily: Fonts.body, color: Colors.error, lineHeight: 18 },
   verifyLink: { fontFamily: Fonts.bodyBold, textDecorationLine: 'underline' },
+  completionBanner: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  completionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  completionTitle: { fontSize: 14, fontFamily: Fonts.bodyBold, color: Colors.textDark },
+  completionPercent: { fontSize: 14, fontFamily: Fonts.heading, color: Colors.primary },
+  progressBar: { height: 6, backgroundColor: Colors.border, borderRadius: 3, marginBottom: 10, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
+  completionHint: { fontSize: 12, fontFamily: Fonts.body, color: Colors.textMuted },
 });
