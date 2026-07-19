@@ -492,4 +492,36 @@ export const Payments = {
   },
 };
 
+// ── Security (2FA) ──────────────────────────────────────────────────────
+export const Security = {
+  get2FAStatus: async () => {
+    const res = await api.get('/auth/2fa/status');
+    return unwrap(res) as { enabled: boolean; method?: string };
+  },
+  enable2FA: async (method: 'authenticator' | 'sms') => {
+    const res = await api.post('/auth/2fa/enable', { method });
+    return unwrap(res) as { secret?: string; qrCode?: string };
+  },
+  verify2FA: async (code: string) => {
+    const res = await api.post('/auth/2fa/verify', { code });
+    return unwrap(res);
+  },
+  disable2FA: async (password: string) => {
+    const res = await api.post('/auth/2fa/disable', { password });
+    return unwrap(res);
+  },
+};
+
+// ── Notifications (Push) ────────────────────────────────────────────────
+export const PushNotifications = {
+  updatePreferences: async (prefs: Record<string, boolean>) => {
+    const res = await api.put('/users/notification-preferences', prefs);
+    return unwrap(res);
+  },
+  getPreferences: async () => {
+    const res = await api.get('/users/notification-preferences');
+    return unwrap(res) as Record<string, boolean>;
+  },
+};
+
 export default api;
