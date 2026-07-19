@@ -38,7 +38,7 @@ export default function PaymentWebView({
   const [processing, setProcessing] = useState(false);
 
   const getPaymentPageUrl = () => {
-    const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:9000';
+    const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') ?? 'https://api.tripmatch.online';
     const params = new URLSearchParams({
       provider,
       amount: String(amount),

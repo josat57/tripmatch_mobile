@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Colors } from '../../src/theme';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:9000/api';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.tripmatch.online/api';
 
 export default function TermsScreen() {
   const [loading, setLoading] = useState(true);
@@ -16,7 +16,8 @@ export default function TermsScreen() {
 
   const loadTerms = async () => {
     try {
-      const response = await fetch(`${API_URL.replace('/api', '')}/legal/terms`);
+      const baseUrl = BACKEND_URL.replace('/api', '');
+      const response = await fetch(`${baseUrl}/legal/terms`);
       if (!response.ok) throw new Error('Failed to load terms');
       const content = await response.text();
       setHtml(content);

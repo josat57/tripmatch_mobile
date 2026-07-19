@@ -1,8 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const DEFAULT_HOST = 'localhost';
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `http://${DEFAULT_HOST}:9000/api`;
+const DEFAULT_HOST = 'https://api.tripmatch.online';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `${DEFAULT_HOST}/api`;
 
 const tokenStore = {
   getAccessToken: () => SecureStore.getItemAsync('accessToken'),

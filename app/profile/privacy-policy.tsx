@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Colors } from '../../src/theme';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:9000/api';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.tripmatch.online/api';
 
 export default function PrivacyPolicyScreen() {
   const [loading, setLoading] = useState(true);
@@ -16,7 +16,8 @@ export default function PrivacyPolicyScreen() {
 
   const loadPrivacyPolicy = async () => {
     try {
-      const response = await fetch(`${API_URL.replace('/api', '')}/legal/privacy`);
+      const baseUrl = BACKEND_URL.replace('/api', '');
+      const response = await fetch(`${baseUrl}/legal/privacy`);
       if (!response.ok) throw new Error('Failed to load privacy policy');
       const content = await response.text();
       setHtml(content);

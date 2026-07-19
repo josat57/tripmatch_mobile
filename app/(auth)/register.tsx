@@ -9,7 +9,7 @@ import { Auth } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 
 // Legal pages are served by the API host itself (mounted at /legal, not under /api).
-const LEGAL_BASE = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:9000/api').replace(/\/api\/?$/, '');
+const LEGAL_BASE = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.tripmatch.online/api').replace(/\/api\/?$/, '');
 
 // Password strength calculator
 function passwordScore(pw: string) {

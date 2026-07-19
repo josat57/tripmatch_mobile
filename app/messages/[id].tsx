@@ -117,7 +117,8 @@ export default function ConversationScreen() {
       let ws: WebSocket;
       try {
         const { token } = await Messaging.getWsToken();
-        const base = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:9000/api')
+        const base = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.tripmatch.online/api')
+          .replace(/^https/, 'wss')
           .replace(/^http/, 'ws')
           .replace('/api', '');
         ws = new WebSocket(`${base}/ws/messages?token=${token}`);
