@@ -4,13 +4,13 @@ import {
   ActivityIndicator, Alert, Modal, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Stack, useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Trips, Users } from '../../src/api/api';
+import { Trips, Users, Feed, TripComments } from '../../src/api/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
-type Tab = 'info' | 'members' | 'requests';
+type Tab = 'info' | 'members' | 'requests' | 'comments';
 
 interface TripDetail {
   _id: string;
@@ -52,6 +52,7 @@ interface JoinRequest {
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const navigation = useNavigation();
 
   const [trip, setTrip]             = useState<TripDetail | null>(null);
   const [requests, setRequests]     = useState<JoinRequest[]>([]);
@@ -59,6 +60,8 @@ export default function TripDetailScreen() {
   const [tab, setTab]               = useState<Tab>('info');
   const [joining, setJoining]       = useState(false);
   const [acting, setActing]         = useState<Set<string>>(new Set());
+  const [isLiked, setIsLiked]       = useState(false);
+  const [liking, setLiking]         = useState(false);
 
   // Review state
   const [reviewVisible, setReviewVisible]       = useState(false);
@@ -66,6 +69,12 @@ export default function TripDetailScreen() {
   const [reviewComment, setReviewComment]       = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewDone, setReviewDone]             = useState(false);
+
+  // Comments state
+  const [comments, setComments]         = useState<Array<{ _id: string; user?: { firstName: string; lastName: string }; content: string; createdAt: string }>>([]);
+  const [commentInput, setCommentInput]  = useState('');
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -90,10 +99,25 @@ export default function TripDetailScreen() {
     } catch {}
   }, [id]);
 
+  const loadComments = useCallback(async () => {
+    if (!id) return;
+    setCommentsLoading(true);
+    try {
+      const data = await TripComments.list(id);
+      const list = data as any[] | { comments?: any[] };
+      setComments(Array.isArray(list) ? list : (list as { comments?: any[] }).comments ?? []);
+    } catch {
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (tab === 'requests') loadRequests();
-  }, [tab, loadRequests]);
+    if (tab === 'comments') loadComments();
+  }, [tab, loadRequests, loadComments]);
 
   const handleJoin = async () => {
     if (!id) return;
@@ -155,6 +179,38 @@ export default function TripDetailScreen() {
     ]);
   };
 
+  const handleAddComment = useCallback(async () => {
+    if (!id || !commentInput.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      await TripComments.add(id, commentInput.trim());
+      setCommentInput('');
+      await loadComments();
+    } catch {
+      Alert.alert('Error', 'Could not post comment.');
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }, [id, commentInput, loadComments]);
+
+  const handleLikeTrip = useCallback(async () => {
+    if (!id) return;
+    setLiking(true);
+    try {
+      if (isLiked) {
+        await Feed.unlikeTrip(id);
+        setIsLiked(false);
+      } else {
+        await Feed.likeTrip(id);
+        setIsLiked(true);
+      }
+    } catch {
+      Alert.alert('Error', isLiked ? 'Could not unlike trip.' : 'Could not like trip.');
+    } finally {
+      setLiking(false);
+    }
+  }, [id, isLiked]);
+
   const submitReview = async () => {
     if (!id || reviewRating === 0) {
       Alert.alert('Rating required', 'Please tap a star to rate this trip.');
@@ -204,12 +260,32 @@ export default function TripDetailScreen() {
   const TABS: { key: Tab; label: string }[] = [
     { key: 'info',     label: 'Info' },
     { key: 'members',  label: `Members (${(trip.participants ?? []).length})` },
+    { key: 'comments', label: `Comments (${comments.length})` },
     ...(isOrganizer ? [{ key: 'requests' as Tab, label: `Requests (${requests.length})` }] : []),
   ];
 
   return (
     <>
-      <Stack.Screen options={{ title: trip.title, headerShown: true }} />
+      <Stack.Screen
+        options={{
+          title: trip.title,
+          headerShown: true,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={handleLikeTrip}
+              disabled={liking}
+              style={{ marginRight: 16 }}
+              accessibilityLabel={isLiked ? 'Unlike trip' : 'Like trip'}
+            >
+              <Ionicons
+                name={isLiked ? 'heart' : 'heart-outline'}
+                size={24}
+                color={isLiked ? Colors.error : Colors.textMuted}
+              />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <View style={styles.container}>
         {/* Tab bar */}
         <View style={styles.tabBar}>
@@ -427,6 +503,65 @@ export default function TripDetailScreen() {
                     )}
                   </View>
                 ))
+              )}
+            </>
+          )}
+
+          {/* ── COMMENTS ── */}
+          {tab === 'comments' && (
+            <>
+              {commentsLoading ? (
+                <View style={styles.center}>
+                  <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+              ) : (
+                <>
+                  {comments.length === 0 ? (
+                    <View style={styles.emptyCenter}>
+                      <Ionicons name="chatbubble-outline" size={40} color={Colors.border} />
+                      <Text style={styles.emptyText}>No comments yet</Text>
+                      <Text style={styles.emptySub}>Be the first to share your thoughts!</Text>
+                    </View>
+                  ) : (
+                    comments.map((c) => (
+                      <View key={c._id} style={styles.commentCard}>
+                        <View style={styles.commentHeader}>
+                          <Text style={styles.commentAuthor}>
+                            {c.user?.firstName} {c.user?.lastName}
+                          </Text>
+                          <Text style={styles.commentTime}>
+                            {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </Text>
+                        </View>
+                        <Text style={styles.commentText}>{c.content}</Text>
+                      </View>
+                    ))
+                  )}
+
+                  <View style={styles.commentInputContainer}>
+                    <TextInput
+                      style={styles.commentInput}
+                      value={commentInput}
+                      onChangeText={setCommentInput}
+                      placeholder="Add a comment…"
+                      placeholderTextColor={Colors.textLight}
+                      multiline
+                      maxLength={300}
+                      editable={!commentSubmitting}
+                    />
+                    <TouchableOpacity
+                      style={[styles.commentSubmitBtn, (!commentInput.trim() || commentSubmitting) && styles.commentSubmitBtnDisabled]}
+                      onPress={handleAddComment}
+                      disabled={!commentInput.trim() || commentSubmitting}
+                    >
+                      {commentSubmitting ? (
+                        <ActivityIndicator size="small" color={Colors.white} />
+                      ) : (
+                        <Ionicons name="arrow-up" size={16} color={Colors.white} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
               )}
             </>
           )}
@@ -770,4 +905,41 @@ const styles = StyleSheet.create({
   },
   submitReviewBtnDisabled: { opacity: 0.5 },
   submitReviewBtnText: { fontSize: 15, fontFamily: Fonts.bodyBold, color: Colors.white },
+  emptySub: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textLight, textAlign: 'center', marginTop: 6 },
+  commentCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  commentAuthor: { fontSize: 13, fontFamily: Fonts.bodyBold, color: Colors.textDark },
+  commentTime: { fontSize: 12, fontFamily: Fonts.body, color: Colors.textLight },
+  commentText: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textMuted, lineHeight: 18 },
+  commentInputContainer: { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  commentInput: {
+    flex: 1,
+    minHeight: 36,
+    maxHeight: 80,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontFamily: Fonts.body,
+    color: Colors.textDark,
+    backgroundColor: Colors.bgInput,
+  },
+  commentSubmitBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  commentSubmitBtnDisabled: { opacity: 0.4 },
 });

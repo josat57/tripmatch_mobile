@@ -419,4 +419,60 @@ export const Calendar = {
   },
 };
 
+// ── Feed (Activity) ───────────────────────────────────────────────────────────
+export const Feed = {
+  getActivity: async (limit = 20, offset = 0) => {
+    const res = await api.get('/feed', { params: { limit, offset } });
+    return unwrap(res);
+  },
+  likeTrip: async (tripId: string) => {
+    const res = await api.post(`/feed/like-trip/${tripId}`);
+    return unwrap(res);
+  },
+  unlikeTrip: async (tripId: string) => {
+    const res = await api.post(`/feed/unlike-trip/${tripId}`);
+    return unwrap(res);
+  },
+  getLikedTrips: async () => {
+    const res = await api.get('/feed/liked-trips');
+    return unwrap(res);
+  },
+};
+
+// ── AI Trip Planning ──────────────────────────────────────────────────────────
+export const AI = {
+  chat: async (message: string, conversationId?: string) => {
+    const res = await api.post('/ai/chat', { message, conversationId });
+    return unwrap(res) as { message?: string; conversationId?: string; suggestions?: string[] };
+  },
+  getConversations: async () => {
+    const res = await api.get('/ai/conversations');
+    return unwrap(res);
+  },
+  getConversation: async (id: string) => {
+    const res = await api.get(`/ai/conversations/${id}`);
+    return unwrap(res);
+  },
+  generateTrip: async (prompt: string) => {
+    const res = await api.post('/ai/generate-trip', { prompt });
+    return unwrap(res);
+  },
+};
+
+// ── Trip Comments ─────────────────────────────────────────────────────────────
+export const TripComments = {
+  list: async (tripId: string) => {
+    const res = await api.get(`/trips/${tripId}/comments`);
+    return unwrap(res);
+  },
+  add: async (tripId: string, content: string) => {
+    const res = await api.post(`/trips/${tripId}/comments`, { content });
+    return unwrap(res);
+  },
+  delete: async (tripId: string, commentId: string) => {
+    const res = await api.delete(`/trips/${tripId}/comments/${commentId}`);
+    return unwrap(res);
+  },
+};
+
 export default api;

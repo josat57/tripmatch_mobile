@@ -11,6 +11,8 @@ const QUICK_ACTIONS = [
   { label: 'Browse Trips',   icon: 'map-outline'         as const, route: '/(tabs)/trips'    as const },
   { label: 'Messages',       icon: 'chatbubbles-outline' as const, route: '/(tabs)/messages' as const },
   { label: 'Create a Trip',  icon: 'add-circle-outline'  as const, route: '/trips/create'    as const },
+  { label: 'Activity Feed',  icon: 'globe-outline'       as const, route: '/feed'            as const },
+  { label: 'Plan with AI',   icon: 'sparkles-outline'    as const, route: '/ai-planner'     as const },
 ];
 
 export default function HomeScreen() {
@@ -56,7 +58,7 @@ export default function HomeScreen() {
       <Text style={styles.sectionTitle}>Quick actions</Text>
       <View style={styles.grid}>
         {QUICK_ACTIONS.map((a) => (
-          <TouchableOpacity key={a.label} style={styles.actionCard} onPress={() => router.push(a.route)}>
+          <TouchableOpacity key={a.label} style={styles.actionCard} onPress={() => router.push(a.route as never)}>
             <Ionicons name={a.icon} size={28} color={Colors.primary} />
             <Text style={styles.actionLabel}>{a.label}</Text>
           </TouchableOpacity>
