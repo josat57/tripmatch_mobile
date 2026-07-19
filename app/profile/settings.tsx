@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Auth, Users } from '../../src/api/api';
+import { Auth, Users, Security } from '../../src/api/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
-type Section = 'main' | 'password' | 'notifications' | 'privacy' | 'danger';
+type Section = 'main' | 'password' | 'notifications' | 'privacy' | 'twofa' | 'danger';
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
@@ -34,6 +34,13 @@ export default function SettingsScreen() {
     profileVisibility: 'public', showEmail: false, showLocation: false,
   });
   const [privacyLoading, setPrivacyLoading] = useState(false);
+
+  // 2FA
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+  const [twoFAMethod, setTwoFAMethod] = useState<'authenticator' | 'sms'>('authenticator');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [twoFADisablePass, setTwoFADisablePass] = useState('');
+  const [showTwoFAPass, setShowTwoFAPass] = useState(false);
 
   const handleChangePassword = async () => {
     if (!currentPass || !newPass) return Alert.alert('Required', 'Fill in all password fields.');
@@ -73,6 +80,34 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Could not save privacy settings.');
     } finally {
       setPrivacyLoading(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    setTwoFALoading(true);
+    try {
+      await Security.enable2FA(twoFAMethod);
+      setTwoFAEnabled(true);
+      Alert.alert('Success', `2FA enabled via ${twoFAMethod === 'authenticator' ? 'Authenticator' : 'SMS'}.`);
+    } catch (err) {
+      Alert.alert('Error', (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Could not enable 2FA.');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!twoFADisablePass) return Alert.alert('Required', 'Enter your password to disable 2FA.');
+    setTwoFALoading(true);
+    try {
+      await Security.disable2FA(twoFADisablePass);
+      setTwoFAEnabled(false);
+      setTwoFADisablePass('');
+      Alert.alert('Success', '2FA disabled.');
+    } catch (err) {
+      Alert.alert('Error', (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Could not disable 2FA.');
+    } finally {
+      setTwoFALoading(false);
     }
   };
 
@@ -184,6 +219,61 @@ export default function SettingsScreen() {
     );
   }
 
+  if (section === 'twofa') {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Two-Factor Authentication', headerShown: true, headerLeft: () => (
+          <TouchableOpacity onPress={() => setSection('main')} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={22} color={Colors.textDark} /></TouchableOpacity>
+        )}} />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            <Text style={styles.sectionLabel}>Status</Text>
+            <View style={styles.statusBox}>
+              <Ionicons name={twoFAEnabled ? 'shield-checkmark' : 'shield-outline'} size={24} color={twoFAEnabled ? Colors.forest : Colors.textMuted} />
+              <Text style={styles.statusText}>{twoFAEnabled ? '2FA is enabled' : '2FA is disabled'}</Text>
+            </View>
+
+            {!twoFAEnabled ? (
+              <>
+                <Text style={styles.sectionLabel}>Enable 2FA</Text>
+                <Text style={styles.sectionDesc}>Choose your preferred method:</Text>
+                {(['authenticator', 'sms'] as const).map((method) => (
+                  <TouchableOpacity key={method} style={styles.radioRow} onPress={() => setTwoFAMethod(method)}>
+                    <View style={[styles.radio, twoFAMethod === method && styles.radioActive]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.radioLabel}>{method === 'authenticator' ? 'Authenticator App' : 'SMS (via phone number)'}</Text>
+                      <Text style={styles.radioDesc}>{method === 'authenticator' ? 'Use Google Authenticator or Authy' : 'Receive codes via text message'}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity style={styles.saveBtn} onPress={handleEnable2FA} disabled={twoFALoading}>
+                  {twoFALoading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.saveBtnText}>Enable 2FA</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.sectionLabel}>Disable 2FA</Text>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Confirm password</Text>
+                  <View style={styles.inputWrap}>
+                    <TextInput style={styles.inputWithIcon} value={twoFADisablePass} onChangeText={setTwoFADisablePass}
+                      secureTextEntry={!showTwoFAPass} placeholder="••••••••" placeholderTextColor={Colors.textLight} />
+                    <TouchableOpacity onPress={() => setShowTwoFAPass(p => !p)} style={styles.eyeBtn} accessibilityLabel={showTwoFAPass ? 'Hide password' : 'Show password'}>
+                      <Ionicons name={showTwoFAPass ? 'eye-off' : 'eye'} size={20} color={Colors.textLight} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <TouchableOpacity style={[styles.saveBtn, styles.dangerBtn]} onPress={handleDisable2FA} disabled={twoFALoading}>
+                  {twoFALoading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.saveBtnText}>Disable 2FA</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </>
+    );
+  }
+
   // Main settings menu
   return (
     <>
@@ -191,9 +281,12 @@ export default function SettingsScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {[
           { icon: 'lock-closed-outline', label: 'Change password',          onPress: () => setSection('password') },
+          { icon: 'shield-outline', label: 'Two-Factor Authentication',      onPress: () => setSection('twofa') },
           { icon: 'notifications-outline', label: 'Notification preferences', onPress: () => setSection('notifications') },
           { icon: 'shield-checkmark-outline', label: 'Privacy settings',     onPress: () => setSection('privacy') },
           { icon: 'card-outline', label: 'KYC Verification',                 onPress: () => router.push('/kyc' as never) },
+          { icon: 'document-text-outline', label: 'Privacy Policy',          onPress: () => router.push('/profile/privacy-policy' as never) },
+          { icon: 'document-outline', label: 'Terms of Service',             onPress: () => router.push('/profile/terms' as never) },
         ].map(({ icon, label, onPress }) => (
           <TouchableOpacity key={label} style={styles.menuItem} onPress={onPress}>
             <Ionicons name={icon as React.ComponentProps<typeof Ionicons>['name']} size={20} color={Colors.textBody} />
@@ -244,4 +337,12 @@ const styles = StyleSheet.create({
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
   radioActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   radioLabel: { fontSize: 14, fontFamily: Fonts.body, color: Colors.textDark },
+  radioDesc: { fontSize: 12, fontFamily: Fonts.body, color: Colors.textMuted, marginTop: 2 },
+  statusBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.white, padding: 16, borderRadius: 12, marginBottom: 20,
+  },
+  statusText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.textDark, flex: 1 },
+  sectionDesc: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textMuted, marginBottom: 12 },
+  dangerBtn: { backgroundColor: Colors.error },
 });

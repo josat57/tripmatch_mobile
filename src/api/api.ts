@@ -478,9 +478,27 @@ export const TripComments = {
 
 // ── Payments / Badge ────────────────────────────────────────────────────────
 export const Payments = {
+  getConfig: async () => {
+    const res = await api.get('/payments/config');
+    return unwrap(res) as { publishableKey?: string };
+  },
+  createIntent: async (amount: number, purpose: string, metadata?: Record<string, string>) => {
+    const res = await api.post('/payments/create-intent', { amount, purpose, metadata });
+    return unwrap(res);
+  },
   initiateBadgeCheckout: async () => {
     const res = await api.post('/payments/badge/initiate');
-    return unwrap(res) as { provider: 'stripe' | 'flutterwave'; clientSecret?: string; reference?: string; amount: number };
+    return unwrap(res) as {
+      provider: 'stripe' | 'flutterwave';
+      amount: number;
+      currency?: string;
+      clientSecret?: string;
+      paymentIntentId?: string;
+      publicKey?: string;
+      txRef?: string;
+      customer?: { email: string; name: string };
+      meta?: Record<string, string>;
+    };
   },
   verifyBadge: async (transactionId: string) => {
     const res = await api.post('/payments/badge/verify', { transactionId });

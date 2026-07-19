@@ -58,6 +58,7 @@ export default function ProfileScreen() {
 
   const MENU: MenuItem[] = [
     { label: 'Edit Profile',       icon: 'person-outline',              onPress: () => router.push('/profile/edit') },
+    { label: 'TripMatch Pro',      icon: 'star-outline',                onPress: () => router.push('/profile/pro-subscription' as never) },
     { label: 'My Trips',           icon: 'map-outline',                 onPress: () => router.push('/profile/my-trips' as never) },
     { label: 'Saved Trips',        icon: 'heart-outline',               onPress: () => router.push('/profile/saved-trips' as never) },
     { label: 'Verified Badge',     icon: 'shield-checkmark-outline',    onPress: () => router.push('/profile/badge' as never) },

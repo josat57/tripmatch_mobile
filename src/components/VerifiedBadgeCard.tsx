@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Payments } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, Fonts } from '../theme';
+import PaymentWebView from './PaymentWebView';
 
 interface BadgeState {
   active: boolean;
@@ -13,11 +14,24 @@ interface BadgeState {
   activatedAt: string | null;
 }
 
+interface CheckoutData {
+  provider: 'stripe' | 'flutterwave';
+  amount: number;
+  currency: string;
+  clientSecret?: string;
+  publicKey?: string;
+  txRef?: string;
+  customer?: { email: string; name: string };
+  meta?: Record<string, string>;
+}
+
 export default function VerifiedBadgeCard() {
   const { user } = useAuth();
   const [badge, setBadge] = useState<BadgeState | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [showWebView, setShowWebView] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
 
   const loadBadge = useCallback(async () => {
     try {
@@ -39,31 +53,29 @@ export default function VerifiedBadgeCard() {
     setPurchasing(true);
 
     try {
-      // Initiate badge checkout
       const checkout = await Payments.initiateBadgeCheckout();
 
-      if (checkout.provider === 'stripe') {
-        // For now, show a message that Stripe checkout would open
-        Alert.alert(
-          'Verified Badge',
-          `Purchase your Verified Badge for $${checkout.amount.toFixed(2)}. Stripe payment integration coming soon.`,
-          [{ text: 'OK' }]
-        );
-      } else if (checkout.provider === 'flutterwave') {
-        // For now, show a message that Flutterwave checkout would open
-        Alert.alert(
-          'Verified Badge',
-          `Purchase your Verified Badge for $${checkout.amount.toFixed(2)}. Flutterwave payment integration coming soon.`,
-          [{ text: 'OK' }]
-        );
-      }
+      // Backend returns provider-specific checkout data
+      const data: CheckoutData = {
+        provider: checkout.provider,
+        amount: checkout.amount,
+        currency: checkout.currency || 'USD',
+        clientSecret: checkout.clientSecret,
+        publicKey: checkout.publicKey,
+        txRef: checkout.txRef,
+        customer: checkout.customer,
+        meta: checkout.meta,
+      };
+
+      setCheckoutData(data);
+      setShowWebView(true);
+      setPurchasing(false);
     } catch (err) {
       Alert.alert(
         'Error',
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
           'Could not initiate checkout. Please try again.'
       );
-    } finally {
       setPurchasing(false);
     }
   }, [purchasing]);
@@ -137,6 +149,37 @@ export default function VerifiedBadgeCard() {
         </TouchableOpacity>
       )}
 
+      {isActive && (
+        <View style={styles.badgeActions}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => {
+              Alert.alert(
+                'Download Badge',
+                'Badge download functionality requires additional setup. For now, take a screenshot of the badge displayed above.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Ionicons name="download-outline" size={16} color={Colors.white} style={{ marginRight: 8 }} />
+            <Text style={styles.actionBtnText}>Download</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => {
+              Alert.alert(
+                'Share Badge',
+                'Badge sharing requires additional setup. You can share your profile link with others to display your verified badge.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Ionicons name="share-social-outline" size={16} color={Colors.white} style={{ marginRight: 8 }} />
+            <Text style={styles.actionBtnText}>Share</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {isActive && badge?.activatedAt && (
         <View style={styles.activeInfo}>
           <Ionicons name="checkmark-circle" size={16} color={Colors.forest} />
@@ -149,6 +192,30 @@ export default function VerifiedBadgeCard() {
             })}
           </Text>
         </View>
+      )}
+
+      {/* Payment WebView */}
+      {checkoutData && (
+        <PaymentWebView
+          visible={showWebView}
+          provider={checkoutData.provider}
+          amount={checkoutData.amount}
+          currency={checkoutData.currency}
+          clientSecret={checkoutData.clientSecret}
+          publicKey={checkoutData.publicKey}
+          txRef={checkoutData.txRef}
+          customer={checkoutData.customer}
+          meta={checkoutData.meta}
+          onClose={() => {
+            setShowWebView(false);
+            setCheckoutData(null);
+          }}
+          onSuccess={() => {
+            setShowWebView(false);
+            setCheckoutData(null);
+            loadBadge();
+          }}
+        />
       )}
     </View>
   );
@@ -276,5 +343,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts.body,
     color: Colors.textMuted,
+  },
+  badgeActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.white,
   },
 });

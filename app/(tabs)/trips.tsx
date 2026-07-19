@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Trips } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
+import SearchFiltersSheet from '../../src/components/SearchFiltersSheet';
 
 interface Trip {
   _id: string;
@@ -31,6 +32,14 @@ const CATEGORY_ICON: Record<string, React.ComponentProps<typeof Ionicons>['name'
   Educational: 'school-outline', Other: 'earth-outline',
 };
 
+interface Filters {
+  minBudget?: number;
+  maxBudget?: number;
+  style?: string;
+  minDays?: number;
+  maxDays?: number;
+}
+
 export default function TripsScreen() {
   const [trips, setTrips]           = useState<Trip[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -39,10 +48,12 @@ export default function TripsScreen() {
   const [hasMore, setHasMore]       = useState(true);
   const [search, setSearch]         = useState('');
   const [category, setCategory]     = useState('All');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters]       = useState<Filters>({});
   const page = useRef(1);
 
   const fetchPage = useCallback(async (pageNum: number, reset: boolean) => {
-    const params: Record<string, string> = {};
+    const params: Record<string, unknown> = { ...filters };
     if (search.trim()) params.q = search.trim();
     if (category !== 'All') params.category = category;
     const data = await Trips.list(pageNum, PAGE_SIZE, params);
@@ -55,7 +66,7 @@ export default function TripsScreen() {
     }
     setHasMore(list.length === PAGE_SIZE);
     return list;
-  }, [search, category]);
+  }, [search, category, filters]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -135,10 +146,18 @@ export default function TripsScreen() {
       <View style={styles.topBar}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>Browse Trips</Text>
-          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/trips/create')}>
-            <Ionicons name="add" size={20} color={Colors.white} />
-            <Text style={styles.createBtnText}>Create</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilters(true)}>
+              <Ionicons name="funnel" size={18} color={Colors.textDark} />
+              {Object.keys(filters).some((k) => filters[k as keyof Filters]) && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/trips/create')}>
+              <Ionicons name="add" size={20} color={Colors.white} />
+              <Text style={styles.createBtnText}>Create</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <TextInput
           style={styles.search}
@@ -192,6 +211,19 @@ export default function TripsScreen() {
           }
         />
       )}
+
+      {/* Search Filters Modal */}
+      <SearchFiltersSheet
+        visible={showFilters}
+        filters={filters}
+        onFiltersChange={(newFilters) => {
+          setFilters(newFilters);
+          setShowFilters(false);
+          page.current = 1;
+          load(false);
+        }}
+        onClose={() => setShowFilters(false)}
+      />
     </View>
   );
 }
@@ -203,7 +235,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
   },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 22, fontFamily: Fonts.heading, color: Colors.textDark },
+  title: { fontSize: 22, fontFamily: Fonts.heading, color: Colors.textDark, flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  filterBtn: {
+    width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.bgInput,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute', top: -4, right: -4, width: 10, height: 10,
+    borderRadius: 5, backgroundColor: Colors.error,
+  },
   createBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 12,

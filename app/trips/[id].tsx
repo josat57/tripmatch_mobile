@@ -6,7 +6,8 @@ import {
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Trips, Users, Feed, TripComments } from '../../src/api/api';
+import { Trips, Users, Feed, TripComments, Payments } from '../../src/api/api';
+import PaymentWebView from '../../src/components/PaymentWebView';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
@@ -76,6 +77,12 @@ export default function TripDetailScreen() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
 
+  // Boost state
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [boostOption, setBoostOption] = useState<3 | 7 | 14>(7);
+  const [showPayment, setShowPayment] = useState(false);
+  const [boostCheckout, setBoostCheckout] = useState<any>(null);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -130,6 +137,30 @@ export default function TripDetailScreen() {
       Alert.alert('Error', 'Could not send join request.');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleBoostClick = () => {
+    setShowBoostModal(true);
+  };
+
+  const handleInitiateBoost = async () => {
+    if (!id) return;
+    setShowBoostModal(false);
+    try {
+      const boostPrices = { 3: 10, 7: 25, 14: 50 };
+      const boostData = await Payments.createIntent(
+        boostPrices[boostOption] * 100,
+        'trip_boost',
+        { tripId: id, days: String(boostOption) }
+      );
+      setBoostCheckout(boostData);
+      setShowPayment(true);
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        (err as any)?.response?.data?.message ?? 'Could not initiate boost. Please try again.'
+      );
     }
   };
 
@@ -316,10 +347,19 @@ export default function TripDetailScreen() {
               <Text style={styles.tripTitle}>{trip.title}</Text>
 
               {destination ? (
-                <View style={styles.metaRow}>
-                  <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
-                  <Text style={styles.metaText}>{destination}</Text>
-                </View>
+                <>
+                  <View style={styles.metaRow}>
+                    <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
+                    <Text style={styles.metaText}>{destination}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.mapLinkBtn}
+                    onPress={() => router.push({ pathname: '/trips/location', params: { id: id!, tripTitle: trip.title } })}
+                  >
+                    <Ionicons name="map" size={14} color={Colors.primary} />
+                    <Text style={styles.mapLinkText}>View Map</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
 
               {start && (
@@ -436,10 +476,30 @@ export default function TripDetailScreen() {
               )}
 
               {isOrganizer && (
-                <View style={styles.joinedBadge}>
-                  <Ionicons name="star-outline" size={18} color={Colors.primary} />
-                  <Text style={[styles.joinedText, { color: Colors.primary }]}>You organised this trip</Text>
-                </View>
+                <>
+                  <View style={styles.joinedBadge}>
+                    <Ionicons name="star-outline" size={18} color={Colors.primary} />
+                    <Text style={[styles.joinedText, { color: Colors.primary }]}>You organised this trip</Text>
+                  </View>
+
+                  {!trip?.boost?.active && (
+                    <TouchableOpacity
+                      style={styles.boostBtn}
+                      onPress={handleBoostClick}
+                      accessibilityLabel="Boost this trip"
+                    >
+                      <Ionicons name="flash-outline" size={18} color={Colors.white} />
+                      <Text style={styles.boostBtnText}>Boost This Trip</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {trip?.boost?.active && (
+                    <View style={styles.boostActiveBadge}>
+                      <Ionicons name="flash" size={18} color={Colors.primary} />
+                      <Text style={styles.boostActiveText}>This trip is boosted</Text>
+                    </View>
+                  )}
+                </>
               )}
 
               {/* Leave a review (past participants only) */}
@@ -684,6 +744,78 @@ export default function TripDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Boost Modal */}
+      <Modal
+        visible={showBoostModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowBoostModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.boostModalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Boost This Trip</Text>
+              <TouchableOpacity onPress={() => setShowBoostModal(false)} accessibilityLabel="Close boost">
+                <Ionicons name="close" size={22} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>Get more visibility for your trip</Text>
+
+            <View style={styles.boostOptions}>
+              {[
+                { days: 3 as const, price: 10, reach: '~200 extra views' },
+                { days: 7 as const, price: 25, reach: '~500 extra views' },
+                { days: 14 as const, price: 50, reach: '~1,200 extra views' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.days}
+                  style={[styles.boostOption, boostOption === opt.days && styles.boostOptionActive]}
+                  onPress={() => setBoostOption(opt.days)}
+                >
+                  <View>
+                    <Text style={[styles.boostOptionDays, boostOption === opt.days && styles.boostOptionDaysActive]}>
+                      {opt.days} days
+                    </Text>
+                    <Text style={[styles.boostOptionReach, boostOption === opt.days && styles.boostOptionReachActive]}>
+                      {opt.reach}
+                    </Text>
+                  </View>
+                  <Text style={[styles.boostOptionPrice, boostOption === opt.days && styles.boostOptionPriceActive]}>
+                    ${opt.price}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.boostConfirmBtn} onPress={handleInitiateBoost}>
+              <Text style={styles.boostConfirmBtnText}>Continue to Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Boost Payment WebView */}
+      {boostCheckout && (
+        <PaymentWebView
+          visible={showPayment}
+          provider="stripe"
+          amount={Math.round(boostCheckout.amount / 100)}
+          currency="USD"
+          clientSecret={boostCheckout.clientSecret}
+          onClose={() => {
+            setShowPayment(false);
+            setBoostCheckout(null);
+          }}
+          onSuccess={() => {
+            setShowPayment(false);
+            setBoostCheckout(null);
+            load();
+            Alert.alert('Success', 'Your trip is now boosted!');
+          }}
+        />
+      )}
     </>
   );
 }
@@ -942,4 +1074,117 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   commentSubmitBtnDisabled: { opacity: 0.4 },
+  boostBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  boostBtnText: {
+    fontSize: 14,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.white,
+  },
+  boostActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 12,
+    opacity: 0.2,
+  },
+  boostActiveText: {
+    fontSize: 14,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.primary,
+  },
+  boostModalCard: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  boostOptions: {
+    gap: 12,
+    marginVertical: 20,
+  },
+  boostOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: Colors.bgCard,
+  },
+  boostOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    opacity: 0.2,
+  },
+  boostOptionDays: {
+    fontSize: 16,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.textDark,
+  },
+  boostOptionDaysActive: {
+    color: Colors.primary,
+  },
+  boostOptionReach: {
+    fontSize: 12,
+    fontFamily: Fonts.body,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  boostOptionReachActive: {
+    color: Colors.primary,
+  },
+  boostOptionPrice: {
+    fontSize: 18,
+    fontFamily: Fonts.heading,
+    color: Colors.textDark,
+  },
+  boostOptionPriceActive: {
+    color: Colors.primary,
+  },
+  boostConfirmBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  boostConfirmBtnText: {
+    fontSize: 15,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.white,
+  },
+  mapLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryLight,
+    opacity: 0.15,
+    alignSelf: 'flex-start',
+  },
+  mapLinkText: {
+    fontSize: 13,
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.primary,
+  },
 });
