@@ -94,10 +94,11 @@ export const Auth = {
     return unwrap(res);
   },
   register: async (data: {
-    firstName: string;
-    lastName: string;
     email: string;
     password: string;
+    termsAccepted: boolean;
+    firstName?: string;
+    lastName?: string;
     travelPreferences?: Record<string, unknown>;
   }) => {
     const res = await api.post('/auth/signup', data);
