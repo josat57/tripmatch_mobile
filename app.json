@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TripMatch",
-    "slug": "tripmatch-mobile",
+    "slug": "tripmatch",
     "version": "1.0.0",
     "scheme": "tripmatch",
     "orientation": "portrait",
@@ -18,12 +18,17 @@
     },
     "android": {
       "package": "io.tripmatch.app",
-      "usesCleartextTraffic": true,
+      "usesCleartextTraffic": false,
       "adaptiveIcon": {
         "backgroundColor": "#1E2820",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,11 +44,30 @@
         }
       ],
       "expo-secure-store",
-      ["expo-image-picker", { "photosPermission": "Allow TripMatch to access your photos to update your profile picture." }],
-      ["expo-location", { "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you." }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TripMatch to access your photos to update your profile picture."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you."
+        }
+      ],
+      "expo-image",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9bb6b0ef-14b0-4fd8-9f9f-2f72fa574a09"
+      },
+      "router": {}
+    },
+    "owner": "bootqlass1"
   }
 }

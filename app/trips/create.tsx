@@ -3,29 +3,58 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Trips } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
+import DatePickerModal from '../../src/components/DatePickerModal';
 
 const CATEGORIES = ['Adventure', 'Relaxation', 'Cultural', 'Business', 'Educational', 'Other'];
 const TRAVEL_STYLES = ['Adventure', 'Cultural', 'Luxury', 'Budget', 'Backpacking', 'Beach', 'Hiking', 'Wellness'];
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD', 'CAD'];
 
+function formatDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function CreateTripScreen() {
   const [loading, setLoading] = useState(false);
 
+  const [coverUri, setCoverUri]       = useState<string | null>(null);
   const [title, setTitle]             = useState('');
   const [description, setDescription] = useState('');
   const [city, setCity]               = useState('');
   const [country, setCountry]         = useState('');
   const [startDate, setStartDate]     = useState('');
   const [endDate, setEndDate]         = useState('');
+  const [pickerOpen, setPickerOpen]   = useState<'start' | 'end' | null>(null);
   const [budgetAmount, setBudgetAmount] = useState('');
   const [currency, setCurrency]       = useState('USD');
   const [maxPax, setMaxPax]           = useState('');
   const [category, setCategory]       = useState('');
   const [styles2, setStyles2]         = useState<string[]>([]);
+
+  const pickCoverImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow photo library access to add a cover image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setCoverUri(result.assets[0].uri);
+    }
+  };
 
   const toggleStyle = (s: string) =>
     setStyles2((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
@@ -71,7 +100,12 @@ export default function CreateTripScreen() {
         payload.capacity = { max: Number(maxPax) };
       }
 
-      await Trips.create(payload);
+      const created = await Trips.create(payload);
+      const tripId = (created as { _id?: string; trip?: { _id?: string } })?.trip?._id
+        ?? (created as { _id?: string })._id;
+      if (tripId && coverUri) {
+        try { await Trips.addPhotos(tripId, coverUri); } catch {}
+      }
       Alert.alert('Trip created!', 'Your trip has been posted.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -94,6 +128,27 @@ export default function CreateTripScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+          {/* Cover photo */}
+          <TouchableOpacity
+            style={styles.coverPicker}
+            onPress={pickCoverImage}
+            accessibilityLabel="Pick cover photo"
+          >
+            {coverUri ? (
+              <Image source={{ uri: coverUri }} style={styles.coverImage} contentFit="cover" />
+            ) : (
+              <View style={styles.coverPlaceholder}>
+                <Ionicons name="image-outline" size={32} color={Colors.textLight} />
+                <Text style={styles.coverPlaceholderText}>Add cover photo (optional)</Text>
+              </View>
+            )}
+            {coverUri && (
+              <View style={styles.coverEditBadge}>
+                <Ionicons name="pencil" size={14} color={Colors.white} />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.field}>
             <Text style={styles.label}>Trip title *</Text>
@@ -174,28 +229,40 @@ export default function CreateTripScreen() {
           <Text style={styles.sectionLabel}>Dates</Text>
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Start (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="2025-03-01"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={styles.label}>Start date</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setPickerOpen('start')}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+                <Text style={[styles.dateBtnText, !startDate && styles.datePlaceholder]}>
+                  {startDate || 'Pick date'}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>End (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="2025-03-14"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={styles.label}>End date</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setPickerOpen('end')}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+                <Text style={[styles.dateBtnText, !endDate && styles.datePlaceholder]}>
+                  {endDate || 'Pick date'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
+
+          <DatePickerModal
+            visible={pickerOpen === 'start'}
+            value={startDate ? new Date(startDate) : null}
+            title="Start date"
+            onCancel={() => setPickerOpen(null)}
+            onConfirm={(d) => { setStartDate(formatDate(d)); setPickerOpen(null); }}
+          />
+          <DatePickerModal
+            visible={pickerOpen === 'end'}
+            value={endDate ? new Date(endDate) : null}
+            title="End date"
+            minimumDate={startDate ? new Date(startDate) : undefined}
+            onCancel={() => setPickerOpen(null)}
+            onConfirm={(d) => { setEndDate(formatDate(d)); setPickerOpen(null); }}
+          />
 
           <Text style={styles.sectionLabel}>Budget (per person)</Text>
           <View style={styles.row}>
@@ -297,6 +364,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginRight: 6,
   },
+  dateBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11, backgroundColor: Colors.bgInput,
+  },
+  dateBtnText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.textDark },
+  datePlaceholder: { color: Colors.textLight },
   row: { flexDirection: 'row', gap: 10 },
   submitBtn: {
     marginTop: 16,
@@ -309,4 +383,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitBtnText: { fontSize: 16, fontFamily: Fonts.bodyBold, color: Colors.white },
+  coverPicker: {
+    height: 160,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    position: 'relative',
+  },
+  coverImage: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.bgInput,
+  },
+  coverPlaceholderText: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textLight },
+  coverEditBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    padding: 6,
+  },
 });

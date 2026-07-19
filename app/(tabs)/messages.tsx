@@ -1,12 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, RefreshControl,
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  ActivityIndicator, RefreshControl, AppState,
 } from 'react-native';
-import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Messaging } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
+
+const POLL_INTERVAL = 15_000;
 
 interface Conversation {
   userId: string;
@@ -22,6 +25,7 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading]             = useState(true);
   const [refreshing, setRefreshing]       = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -34,6 +38,18 @@ export default function MessagesScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Poll for new conversations while screen is focused and app is active
+  useFocusEffect(
+    useCallback(() => {
+      pollRef.current = setInterval(() => {
+        if (AppState.currentState === 'active') load(false);
+      }, POLL_INTERVAL);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
+    }, [load])
+  );
 
   const formatTime = (iso?: string) => {
     if (!iso) return '';
@@ -60,63 +76,60 @@ export default function MessagesScreen() {
         <Text style={styles.title}>Messages</Text>
       </View>
 
-      {conversations.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="chatbubbles-outline" size={52} color={Colors.border} />
-          <Text style={styles.emptyTitle}>No messages yet</Text>
-          <Text style={styles.emptySub}>Connect with travel companions to start chatting.</Text>
-          <TouchableOpacity style={styles.ctaBtn} onPress={() => router.push('/(tabs)/matches')}>
-            <Text style={styles.ctaBtnText}>Find Matches</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
-          }
-        >
-          {conversations.map((conv) => (
-            <TouchableOpacity
-              key={conv.userId}
-              style={styles.row}
-              onPress={() => router.push({
-                pathname: '/messages/[id]',
-                params: {
-                  id: conv.userId,
-                  name: `${conv.firstName} ${conv.lastName}`,
-                  avatar: conv.profileImage ?? '',
-                },
-              })}
-            >
-              {conv.profileImage ? (
-                <Image source={{ uri: conv.profileImage }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitials}>
-                    {conv.firstName?.[0]}{conv.lastName?.[0]}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.rowContent}>
-                <View style={styles.rowTop}>
-                  <Text style={styles.rowName}>{conv.firstName} {conv.lastName}</Text>
-                  <Text style={styles.rowTime}>{formatTime(conv.lastMessageAt)}</Text>
-                </View>
-                <View style={styles.rowBottom}>
-                  <Text style={styles.rowPreview} numberOfLines={1}>
-                    {conv.lastMessage ?? 'Start a conversation…'}
-                  </Text>
-                  {(conv.unreadCount ?? 0) > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{conv.unreadCount}</Text>
-                    </View>
-                  )}
-                </View>
+      <FlatList
+        data={conversations}
+        keyExtractor={(conv) => conv.userId}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />}
+        renderItem={({ item: conv }) => (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push({
+              pathname: '/messages/[id]',
+              params: {
+                id: conv.userId,
+                name: `${conv.firstName} ${conv.lastName}`,
+                avatar: conv.profileImage ?? '',
+              },
+            })}
+          >
+            {conv.profileImage ? (
+              <Image source={{ uri: conv.profileImage }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>
+                  {conv.firstName?.[0]}{conv.lastName?.[0]}
+                </Text>
               </View>
+            )}
+            <View style={styles.rowContent}>
+              <View style={styles.rowTop}>
+                <Text style={styles.rowName}>{conv.firstName} {conv.lastName}</Text>
+                <Text style={styles.rowTime}>{formatTime(conv.lastMessageAt)}</Text>
+              </View>
+              <View style={styles.rowBottom}>
+                <Text style={styles.rowPreview} numberOfLines={1}>
+                  {conv.lastMessage ?? 'Start a conversation…'}
+                </Text>
+                {(conv.unreadCount ?? 0) > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{conv.unreadCount}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Ionicons name="chatbubbles-outline" size={52} color={Colors.border} />
+            <Text style={styles.emptyTitle}>No messages yet</Text>
+            <Text style={styles.emptySub}>Connect with travel companions to start chatting.</Text>
+            <TouchableOpacity style={styles.ctaBtn} onPress={() => router.push('/(tabs)/matches')}>
+              <Text style={styles.ctaBtnText}>Find Matches</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+          </View>
+        }
+      />
     </View>
   );
 }

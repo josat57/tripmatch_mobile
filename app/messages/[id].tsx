@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Messaging } from '../../src/api/api';
+import * as ImagePicker from 'expo-image-picker';
+import { Messaging, Users } from '../../src/api/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
@@ -20,6 +22,8 @@ interface Message {
 const WS_INITIAL_DELAY = 1000;
 const WS_MAX_DELAY     = 60000;
 
+const IMAGE_URL_RE = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+
 export default function ConversationScreen() {
   const { id: recipientId, name, avatar } = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
   const { user } = useAuth();
@@ -30,6 +34,7 @@ export default function ConversationScreen() {
   const [loading, setLoading]   = useState(true);
   const [sending, setSending]   = useState(false);
   const [typing, setTyping]     = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const wsRef        = useRef<WebSocket | null>(null);
   const flatListRef  = useRef<FlatList>(null);
@@ -37,21 +42,58 @@ export default function ConversationScreen() {
   const closedRef    = useRef(false);
   const delayRef     = useRef(WS_INITIAL_DELAY);
 
-  // Set the conversation header dynamically
+  const handleBlockReport = useCallback(() => {
+    if (!recipientId) return;
+    const displayName = name ?? 'this user';
+    Alert.alert(`Report or block ${displayName}`, 'What would you like to do?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await Users.block(recipientId);
+            Alert.alert('Blocked', `${displayName} has been blocked.`, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          } catch {
+            Alert.alert('Error', 'Could not block user.');
+          }
+        },
+      },
+      {
+        text: 'Report user',
+        onPress: () => {
+          Alert.prompt('Report', 'Briefly describe the issue:', async (reason) => {
+            if (!reason) return;
+            try {
+              await Users.report(recipientId, reason);
+              Alert.alert('Reported', 'Thank you. Our team will review this.');
+            } catch {
+              Alert.alert('Error', 'Could not submit report.');
+            }
+          });
+        },
+      },
+    ]);
+  }, [recipientId, name, navigation]);
+
   useEffect(() => {
     if (!name) return;
     navigation.setOptions({
       title: name,
-      headerRight: avatar
-        ? () => (
-            <Image
-              source={{ uri: avatar }}
-              style={{ width: 32, height: 32, borderRadius: 16, marginRight: 12 }}
-            />
-          )
-        : undefined,
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+          ) : null}
+          <TouchableOpacity onPress={handleBlockReport} accessibilityLabel={`Report or block ${name}`}>
+            <Ionicons name="ellipsis-vertical" size={20} color={Colors.textDark} />
+          </TouchableOpacity>
+        </View>
+      ),
     });
-  }, [name, avatar, navigation]);
+  }, [name, avatar, navigation, handleBlockReport]);
 
   useEffect(() => {
     if (!recipientId) return;
@@ -75,15 +117,14 @@ export default function ConversationScreen() {
       let ws: WebSocket;
       try {
         const { token } = await Messaging.getWsToken();
-        const base = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:9000/api')
+        const base = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.tripmatch.online/api')
+          .replace(/^https/, 'wss')
           .replace(/^http/, 'ws')
           .replace('/api', '');
         ws = new WebSocket(`${base}/ws/messages?token=${token}`);
         wsRef.current = ws;
 
-        ws.onopen = () => {
-          delayRef.current = WS_INITIAL_DELAY; // reset backoff on successful connection
-        };
+        ws.onopen = () => { delayRef.current = WS_INITIAL_DELAY; };
 
         ws.onmessage = (e) => {
           try {
@@ -140,8 +181,7 @@ export default function ConversationScreen() {
     typingTimer.current = setTimeout(() => emitTyping(false), 1500);
   };
 
-  const send = async () => {
-    const content = input.trim();
+  const sendContent = async (content: string) => {
     if (!content || sending || !recipientId) return;
 
     const optimisticId = `opt_${Date.now()}`;
@@ -171,6 +211,31 @@ export default function ConversationScreen() {
     }
   };
 
+  const send = () => sendContent(input.trim());
+
+  const pickAndSendImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow photo library access to share images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    setUploadingImage(true);
+    try {
+      const { imageUrl } = await Messaging.uploadImage(result.assets[0].uri);
+      await sendContent(imageUrl);
+    } catch {
+      Alert.alert('Upload failed', 'Could not upload the image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -181,6 +246,31 @@ export default function ConversationScreen() {
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const isMine = (msg: Message) => msg.senderId === user?._id;
+
+  const renderBubble = (item: Message) => {
+    const mine = isMine(item);
+    const isImage = IMAGE_URL_RE.test(item.content);
+
+    return (
+      <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+        {isImage ? (
+          <Image
+            source={{ uri: item.content }}
+            style={styles.bubbleImage}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
+            {item.content}
+          </Text>
+        )}
+        <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
+          {formatTime(item.createdAt)}
+          {item.optimistic ? ' ··' : ''}
+        </Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -209,17 +299,7 @@ export default function ConversationScreen() {
           ListEmptyComponent={
             <Text style={styles.emptyText}>Send your first message to get the conversation started!</Text>
           }
-          renderItem={({ item }) => (
-            <View style={[styles.bubble, isMine(item) ? styles.mine : styles.theirs]}>
-              <Text style={[styles.bubbleText, isMine(item) && styles.bubbleTextMine]}>
-                {item.content}
-              </Text>
-              <Text style={[styles.bubbleTime, isMine(item) && styles.bubbleTimeMine]}>
-                {formatTime(item.createdAt)}
-                {item.optimistic ? ' ··' : ''}
-              </Text>
-            </View>
-          )}
+          renderItem={({ item }) => renderBubble(item)}
         />
 
         {typing && (
@@ -229,6 +309,19 @@ export default function ConversationScreen() {
         )}
 
         <View style={styles.inputBar}>
+          <TouchableOpacity
+            style={styles.imageBtn}
+            onPress={pickAndSendImage}
+            disabled={uploadingImage || sending}
+            accessibilityLabel="Send image"
+          >
+            {uploadingImage ? (
+              <ActivityIndicator size="small" color={Colors.textMuted} />
+            ) : (
+              <Ionicons name="image-outline" size={22} color={Colors.textMuted} />
+            )}
+          </TouchableOpacity>
+
           <TextInput
             style={styles.input}
             value={input}
@@ -238,10 +331,12 @@ export default function ConversationScreen() {
             multiline
             maxLength={1000}
           />
+
           <TouchableOpacity
             style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
             onPress={send}
             disabled={!input.trim() || sending}
+            accessibilityLabel="Send message"
           >
             {sending ? (
               <ActivityIndicator size="small" color={Colors.white} />
@@ -258,6 +353,8 @@ export default function ConversationScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.mist },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14, marginRight: 12 },
+  headerAvatar: { width: 32, height: 32, borderRadius: 16 },
   messageList: { padding: 16, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   emptyText: {
     textAlign: 'center',
@@ -279,6 +376,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  bubbleImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
   bubbleText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.textBody, lineHeight: 21 },
   bubbleTextMine: { color: Colors.white },
   bubbleTime: { fontSize: 10, fontFamily: Fonts.body, color: Colors.textLight, marginTop: 3, alignSelf: 'flex-end' },
@@ -288,11 +391,21 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 10,
+    gap: 8,
     padding: 12,
     backgroundColor: Colors.bgCard,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
+  },
+  imageBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.bgInput,
   },
   input: {
     flex: 1,

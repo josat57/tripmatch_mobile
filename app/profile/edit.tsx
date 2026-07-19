@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
+  ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -35,7 +36,7 @@ export default function EditProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -95,7 +96,7 @@ export default function EditProfileScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Avatar picker */}
           <View style={styles.avatarSection}>
-            <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
+            <TouchableOpacity onPress={pickImage} style={styles.avatarWrap} accessibilityLabel="Change profile photo">
               {displayAvatar ? (
                 <Image source={{ uri: displayAvatar }} style={styles.avatar} />
               ) : (

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const DEFAULT_HOST = 'localhost';
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `http://${DEFAULT_HOST}:9000/api`;
+const DEFAULT_HOST = 'https://api.tripmatch.online';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `${DEFAULT_HOST}/api`;
 
 const tokenStore = {
   getAccessToken: () => SecureStore.getItemAsync('accessToken'),
@@ -77,11 +77,28 @@ api.interceptors.response.use(
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const Auth = {
+  forgotPassword: async (email: string) => {
+    const res = await api.post('/auth/forgot_password', { email });
+    return unwrap(res);
+  },
+  verifyOTP: async (email: string, otp: string) => {
+    const res = await api.post('/auth/verify_otp', { email, otp });
+    return unwrap(res);
+  },
+  resetPassword: async (resetToken: string, password: string) => {
+    const res = await api.post('/auth/reset_password', { resetToken, password });
+    return unwrap(res);
+  },
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await api.post('/auth/change_password', { currentPassword, newPassword });
+    return unwrap(res);
+  },
   register: async (data: {
-    firstName: string;
-    lastName: string;
     email: string;
     password: string;
+    termsAccepted: boolean;
+    firstName?: string;
+    lastName?: string;
     travelPreferences?: Record<string, unknown>;
   }) => {
     const res = await api.post('/auth/signup', data);
@@ -162,6 +179,16 @@ export const Messaging = {
     const res = await api.get('/messaging/ws-token');
     return unwrap(res) as { token: string };
   },
+  uploadImage: async (uri: string) => {
+    const filename = uri.split('/').pop() ?? 'photo.jpg';
+    const ext = /\.(\w+)$/.exec(filename)?.[1] ?? 'jpeg';
+    const formData = new FormData();
+    formData.append('image', { uri, name: filename, type: `image/${ext}` } as unknown as Blob);
+    const res = await api.post('/uploads/upload_profile_image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(res) as { imageUrl: string };
+  },
 };
 
 // ── Trips ─────────────────────────────────────────────────────────────────────
@@ -214,6 +241,16 @@ export const Trips = {
     const res = await api.post(`/trips/${tripId}/reviews`, { rating, comment });
     return unwrap(res);
   },
+  addPhotos: async (tripId: string, uri: string) => {
+    const filename = uri.split('/').pop() ?? 'photo.jpg';
+    const ext = /\.(\w+)$/.exec(filename)?.[1] ?? 'jpeg';
+    const formData = new FormData();
+    formData.append('photos', { uri, name: filename, type: `image/${ext}` } as unknown as Blob);
+    const res = await api.post(`/uploads/add_trip_photos/${tripId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(res);
+  },
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -264,8 +301,16 @@ export const Users = {
     const res = await api.post(`/users/block/${userId}`);
     return unwrap(res);
   },
+  unblock: async (userId: string) => {
+    const res = await api.post(`/users/unblock/${userId}`);
+    return unwrap(res);
+  },
   report: async (userId: string, reason: string, details?: string) => {
     const res = await api.post(`/users/report/${userId}`, { reason, details });
+    return unwrap(res);
+  },
+  getById: async (userId: string) => {
+    const res = await api.get(`/users/${userId}`);
     return unwrap(res);
   },
   getTravelDNA: async (userId: string) => {
@@ -275,6 +320,225 @@ export const Users = {
   getAchievements: async (userId: string) => {
     const res = await api.get(`/users/${userId}/achievements`);
     return unwrap(res);
+  },
+  getAchievementDefinitions: async () => {
+    const res = await api.get('/users/achievements/definitions');
+    return unwrap(res);
+  },
+  checkAchievements: async () => {
+    const res = await api.post('/users/me/achievements/check');
+    return unwrap(res);
+  },
+  getStats: async () => {
+    const res = await api.get('/users/me/stats');
+    return unwrap(res);
+  },
+  getBucketList: async () => {
+    const res = await api.get('/users/me/bucket-list');
+    return unwrap(res);
+  },
+  addToBucketList: async (destination: string, country?: string) => {
+    const res = await api.post('/users/me/bucket-list', { destination, country });
+    return unwrap(res);
+  },
+  removeFromBucketList: async (destination: string) => {
+    const res = await api.delete(`/users/me/bucket-list/${encodeURIComponent(destination)}`);
+    return unwrap(res);
+  },
+  updateNotificationPreferences: async (prefs: Record<string, boolean>) => {
+    const res = await api.put('/users/notification_preferences', prefs);
+    return unwrap(res);
+  },
+  updatePrivacySettings: async (settings: Record<string, unknown>) => {
+    const res = await api.put('/users/privacy_settings', settings);
+    return unwrap(res);
+  },
+  deleteAccount: async () => {
+    const res = await api.delete('/users/delete_account');
+    return unwrap(res);
+  },
+};
+
+// ── KYC ───────────────────────────────────────────────────────────────────────
+export const KYC = {
+  getStatus: async () => {
+    const res = await api.get('/kyc/status');
+    return unwrap(res);
+  },
+  upload: async (data: {
+    type: 'passport' | 'national_id' | 'driver_license';
+    number: string;
+    frontImage: string;
+    backImage?: string;
+    selfieImage: string;
+    expiresAt: string;
+    country: string;
+    issuedAt?: string;
+    placeOfBirth?: string;
+    placeOfIssue?: string;
+  }) => {
+    const res = await api.post('/kyc/upload', data);
+    return unwrap(res);
+  },
+  resubmit: async (data: Record<string, unknown>) => {
+    const res = await api.post('/kyc/resubmit', data);
+    return unwrap(res);
+  },
+};
+
+// ── Trip Expenses ─────────────────────────────────────────────────────────────
+export const Expenses = {
+  list: async (tripId: string) => {
+    const res = await api.get(`/trips/${tripId}/expenses`);
+    return unwrap(res);
+  },
+  add: async (tripId: string, data: {
+    description: string;
+    amount: number;
+    category: 'food' | 'transport' | 'accommodation' | 'activities' | 'other';
+    splitBetween: { user: string; share: number }[];
+    date?: string;
+  }) => {
+    const res = await api.post(`/trips/${tripId}/expenses`, data);
+    return unwrap(res);
+  },
+  settle: async (tripId: string, expenseId: string) => {
+    const res = await api.post(`/trips/${tripId}/expenses/${expenseId}/settle`);
+    return unwrap(res);
+  },
+  delete: async (tripId: string, expenseId: string) => {
+    const res = await api.delete(`/trips/${tripId}/expenses/${expenseId}`);
+    return unwrap(res);
+  },
+};
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+export const Calendar = {
+  getEvents: async () => {
+    const res = await api.get('/calendar/events');
+    return unwrap(res);
+  },
+};
+
+// ── Feed (Activity) ───────────────────────────────────────────────────────────
+export const Feed = {
+  getActivity: async (limit = 20, offset = 0) => {
+    const res = await api.get('/feed', { params: { limit, offset } });
+    return unwrap(res);
+  },
+  likeTrip: async (tripId: string) => {
+    const res = await api.post(`/feed/like-trip/${tripId}`);
+    return unwrap(res);
+  },
+  unlikeTrip: async (tripId: string) => {
+    const res = await api.post(`/feed/unlike-trip/${tripId}`);
+    return unwrap(res);
+  },
+  getLikedTrips: async () => {
+    const res = await api.get('/feed/liked-trips');
+    return unwrap(res);
+  },
+};
+
+// ── AI Trip Planning ──────────────────────────────────────────────────────────
+export const AI = {
+  chat: async (message: string, conversationId?: string) => {
+    const res = await api.post('/ai/chat', { message, conversationId });
+    return unwrap(res) as { message?: string; conversationId?: string; suggestions?: string[] };
+  },
+  getConversations: async () => {
+    const res = await api.get('/ai/conversations');
+    return unwrap(res);
+  },
+  getConversation: async (id: string) => {
+    const res = await api.get(`/ai/conversations/${id}`);
+    return unwrap(res);
+  },
+  generateTrip: async (prompt: string) => {
+    const res = await api.post('/ai/generate-trip', { prompt });
+    return unwrap(res);
+  },
+};
+
+// ── Trip Comments ─────────────────────────────────────────────────────────────
+export const TripComments = {
+  list: async (tripId: string) => {
+    const res = await api.get(`/trips/${tripId}/comments`);
+    return unwrap(res);
+  },
+  add: async (tripId: string, content: string) => {
+    const res = await api.post(`/trips/${tripId}/comments`, { content });
+    return unwrap(res);
+  },
+  delete: async (tripId: string, commentId: string) => {
+    const res = await api.delete(`/trips/${tripId}/comments/${commentId}`);
+    return unwrap(res);
+  },
+};
+
+// ── Payments / Badge ────────────────────────────────────────────────────────
+export const Payments = {
+  getConfig: async () => {
+    const res = await api.get('/payments/config');
+    return unwrap(res) as { publishableKey?: string };
+  },
+  createIntent: async (amount: number, purpose: string, metadata?: Record<string, string>) => {
+    const res = await api.post('/payments/create-intent', { amount, purpose, metadata });
+    return unwrap(res);
+  },
+  initiateBadgeCheckout: async () => {
+    const res = await api.post('/payments/badge/initiate');
+    return unwrap(res) as {
+      provider: 'stripe' | 'flutterwave';
+      amount: number;
+      currency?: string;
+      clientSecret?: string;
+      paymentIntentId?: string;
+      publicKey?: string;
+      txRef?: string;
+      customer?: { email: string; name: string };
+      meta?: Record<string, string>;
+    };
+  },
+  verifyBadge: async (transactionId: string) => {
+    const res = await api.post('/payments/badge/verify', { transactionId });
+    return unwrap(res);
+  },
+  getBadgeStatus: async () => {
+    const res = await api.get('/kyc/badge');
+    return unwrap(res) as { active: boolean; tier: string; activatedAt: string | null };
+  },
+};
+
+// ── Security (2FA) ──────────────────────────────────────────────────────
+export const Security = {
+  get2FAStatus: async () => {
+    const res = await api.get('/auth/2fa/status');
+    return unwrap(res) as { enabled: boolean; method?: string };
+  },
+  enable2FA: async (method: 'authenticator' | 'sms') => {
+    const res = await api.post('/auth/2fa/enable', { method });
+    return unwrap(res) as { secret?: string; qrCode?: string };
+  },
+  verify2FA: async (code: string) => {
+    const res = await api.post('/auth/2fa/verify', { code });
+    return unwrap(res);
+  },
+  disable2FA: async (password: string) => {
+    const res = await api.post('/auth/2fa/disable', { password });
+    return unwrap(res);
+  },
+};
+
+// ── Notifications (Push) ────────────────────────────────────────────────
+export const PushNotifications = {
+  updatePreferences: async (prefs: Record<string, boolean>) => {
+    const res = await api.put('/users/notification-preferences', prefs);
+    return unwrap(res);
+  },
+  getPreferences: async () => {
+    const res = await api.get('/users/notification-preferences');
+    return unwrap(res) as Record<string, boolean>;
   },
 };
 

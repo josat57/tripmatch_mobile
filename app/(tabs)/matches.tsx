@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, Image,
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Buddy } from '../../src/api/api';
+import { Buddy, Users } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 
 const DISMISSED_KEY = '@tripmatch_dismissed_matches';
@@ -25,14 +26,25 @@ interface Match {
 export default function MatchesScreen() {
   const [matches, setMatches]     = useState<Match[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [sending, setSending]     = useState<Set<string>>(new Set());
 
-  const loadDismissed = useCallback(async () => {
+  // Ref mirrors the state so async callbacks always see the current dismissed set
+  // without relying on the React state update being flushed first.
+  const dismissedRef = useRef<Set<string>>(new Set());
+
+  const loadDismissed = useCallback(async (): Promise<Set<string>> => {
     try {
       const raw = await AsyncStorage.getItem(DISMISSED_KEY);
-      if (raw) setDismissed(new Set(JSON.parse(raw) as string[]));
+      if (raw) {
+        const ids = new Set(JSON.parse(raw) as string[]);
+        dismissedRef.current = ids;
+        setDismissed(ids);
+        return ids;
+      }
     } catch {}
+    return new Set();
   }, []);
 
   const saveDismissed = useCallback(async (next: Set<string>) => {
@@ -44,22 +56,68 @@ export default function MatchesScreen() {
   const dismiss = useCallback((id: string) => {
     setDismissed((prev) => {
       const next = new Set(prev).add(id);
+      dismissedRef.current = next;
       saveDismissed(next);
       return next;
     });
   }, [saveDismissed]);
 
+  const loadMatches = useCallback(async (currentDismissed: Set<string>, isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const data = await Buddy.getSuggestions(30);
+      const d = data as Match[] | { recommendations?: Match[] };
+      const all = Array.isArray(d) ? d : (d as { recommendations?: Match[] }).recommendations ?? [];
+      // Filter out dismissed IDs immediately using the ref (avoids stale closure)
+      setMatches(all.filter((m) => !currentDismissed.has(m._id)));
+    } catch {
+      if (!isRefresh) Alert.alert('Error', 'Could not load matches. Try again later.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
-    loadDismissed().then(() => {
-      Buddy.getSuggestions(30)
-        .then((data) => {
-          const d = data as Match[] | { recommendations?: Match[] };
-          setMatches(Array.isArray(d) ? d : (d as { recommendations?: Match[] }).recommendations ?? []);
-        })
-        .catch(() => Alert.alert('Error', 'Could not load matches. Try again later.'))
-        .finally(() => setLoading(false));
-    });
-  }, [loadDismissed]);
+    loadDismissed().then((ids) => loadMatches(ids));
+  }, [loadDismissed, loadMatches]);
+
+  const handleRefresh = useCallback(() => {
+    loadMatches(dismissedRef.current, true);
+  }, [loadMatches]);
+
+  const handleBlockReport = useCallback((targetUserId: string, name: string) => {
+    Alert.alert(`Report or block ${name}`, 'What would you like to do?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await Users.block(targetUserId);
+            dismiss(targetUserId);
+            Alert.alert('Blocked', `${name} has been blocked.`);
+          } catch {
+            Alert.alert('Error', 'Could not block user.');
+          }
+        },
+      },
+      {
+        text: 'Report user',
+        onPress: () => {
+          Alert.prompt('Report', 'Briefly describe the issue:', async (reason) => {
+            if (!reason) return;
+            try {
+              await Users.report(targetUserId, reason);
+              Alert.alert('Reported', 'Thank you. Our team will review this.');
+            } catch {
+              Alert.alert('Error', 'Could not submit report.');
+            }
+          });
+        },
+      },
+    ]);
+  }, [dismiss]);
 
   const sendRequest = async (userId: string) => {
     setSending((p) => new Set(p).add(userId));
@@ -74,6 +132,7 @@ export default function MatchesScreen() {
     }
   };
 
+  // Visible list: items that weren't dismissed after the fetch (handles dismiss during session)
   const visible = matches.filter((m) => !dismissed.has(m._id));
 
   if (loading) {
@@ -92,84 +151,101 @@ export default function MatchesScreen() {
         <Text style={styles.sub}>Travellers matched to your style</Text>
       </View>
 
-      {visible.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="people-outline" size={52} color={Colors.border} />
-          <Text style={styles.emptyTitle}>No matches yet</Text>
-          <Text style={styles.emptySub}>
-            Complete your travel preferences to get personalised recommendations.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.list}>
-          {visible.map((match) => (
-            <View key={match._id} style={styles.card}>
-              <View style={styles.avatarRow}>
-                {match.profileImage ? (
-                  <Image source={{ uri: match.profileImage }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarInitials}>
-                      {match.firstName?.[0]}{match.lastName?.[0]}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.nameBlock}>
-                  <Text style={styles.name}>{match.firstName} {match.lastName}</Text>
-                  {match.compatibilityScore != null && (
-                    <View style={styles.scoreBadge}>
-                      <Text style={styles.scoreText}>{match.compatibilityScore}% match</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {match.bio ? (
-                <Text style={styles.bio} numberOfLines={2}>{match.bio}</Text>
-              ) : null}
-
-              {(match.matchReasons ?? match.travelPreferences?.style ?? []).length > 0 && (
-                <View style={styles.chips}>
-                  {(match.matchReasons ?? match.travelPreferences?.style ?? []).slice(0, 3).map((r) => (
-                    <View key={r} style={styles.chip}>
-                      <Text style={styles.chipText}>{r}</Text>
-                    </View>
-                  ))}
+      <FlatList
+        data={visible}
+        keyExtractor={(m) => m._id}
+        contentContainerStyle={visible.length === 0 ? styles.emptyContainer : styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Ionicons name="people-outline" size={52} color={Colors.border} />
+            <Text style={styles.emptyTitle}>No matches yet</Text>
+            <Text style={styles.emptySub}>
+              Complete your travel preferences to get personalised recommendations.
+            </Text>
+          </View>
+        }
+        renderItem={({ item: match }) => (
+          <View style={styles.card}>
+            <View style={styles.avatarRow}>
+              {match.profileImage ? (
+                <Image source={{ uri: match.profileImage }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitials}>
+                    {match.firstName?.[0]}{match.lastName?.[0]}
+                  </Text>
                 </View>
               )}
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.connectBtn}
-                  onPress={() => sendRequest(match._id)}
-                  disabled={sending.has(match._id)}
-                >
-                  {sending.has(match._id) ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
-                  ) : (
-                    <Text style={styles.connectBtnText}>Connect</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.messageBtn}
-                  onPress={() => router.push({
-                    pathname: '/messages/[id]',
-                    params: { id: match._id, name: `${match.firstName} ${match.lastName}`, avatar: match.profileImage ?? '' },
-                  })}
-                >
-                  <Ionicons name="chatbubble-outline" size={16} color={Colors.textBody} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.passBtn}
-                  onPress={() => dismiss(match._id)}
-                >
-                  <Text style={styles.passBtnText}>Pass</Text>
-                </TouchableOpacity>
+              <View style={styles.nameBlock}>
+                <Text style={styles.name}>{match.firstName} {match.lastName}</Text>
+                {match.compatibilityScore != null && (
+                  <View style={styles.scoreBadge}>
+                    <Text style={styles.scoreText}>{match.compatibilityScore}% match</Text>
+                  </View>
+                )}
               </View>
             </View>
-          ))}
-        </ScrollView>
-      )}
+
+            {match.bio ? (
+              <Text style={styles.bio} numberOfLines={2}>{match.bio}</Text>
+            ) : null}
+
+            {(match.matchReasons ?? match.travelPreferences?.style ?? []).length > 0 && (
+              <View style={styles.chips}>
+                {(match.matchReasons ?? match.travelPreferences?.style ?? []).slice(0, 3).map((r) => (
+                  <View key={r} style={styles.chip}>
+                    <Text style={styles.chipText}>{r}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.connectBtn}
+                onPress={() => sendRequest(match._id)}
+                disabled={sending.has(match._id)}
+              >
+                {sending.has(match._id) ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Text style={styles.connectBtnText}>Connect</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.messageBtn}
+                onPress={() => router.push({
+                  pathname: '/messages/[id]',
+                  params: { id: match._id, name: `${match.firstName} ${match.lastName}`, avatar: match.profileImage ?? '' },
+                })}
+                accessibilityLabel={`Message ${match.firstName}`}
+              >
+                <Ionicons name="chatbubble-outline" size={16} color={Colors.textBody} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.passBtn}
+                onPress={() => dismiss(match._id)}
+              >
+                <Text style={styles.passBtnText}>Pass</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.moreBtn}
+                onPress={() => handleBlockReport(match._id, `${match.firstName} ${match.lastName}`)}
+                accessibilityLabel={`Report or block ${match.firstName}`}
+              >
+                <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textLight} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -187,6 +263,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: Fonts.heading, color: Colors.textDark },
   sub: { fontSize: 13, fontFamily: Fonts.body, color: Colors.textMuted, marginTop: 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  emptyContainer: { flex: 1 },
   loadingText: { marginTop: 12, fontSize: 14, fontFamily: Fonts.body, color: Colors.textMuted },
   emptyTitle: { fontSize: 18, fontFamily: Fonts.heading, color: Colors.textBody, marginTop: 14 },
   emptySub: {
@@ -274,4 +351,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   passBtnText: { fontSize: 14, fontFamily: Fonts.bodySemiBold, color: Colors.textMuted },
+  moreBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

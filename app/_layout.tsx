@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Animated, Image, Platform, StyleSheet } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
 import { DMSans_600SemiBold } from '@expo-google-fonts/dm-sans/600SemiBold';
@@ -20,6 +21,13 @@ import { Colors, Fonts } from '../src/theme';
 import type * as NotificationsNS from 'expo-notifications';
 
 SplashScreen.preventAutoHideAsync();
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
+  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  environment: __DEV__ ? 'development' : 'production',
+  tracesSampleRate: __DEV__ ? 0 : 0.2,
+});
 
 // expo-notifications throws during module initialisation in Expo Go on Android (SDK 53+).
 // Use a conditional require so the native module is never loaded on that platform.
@@ -193,7 +201,7 @@ const startupStyles = StyleSheet.create({
 
 // ─── Root layout ─────────────────────────────────────────────────────────────
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
     DMSans_600SemiBold,
@@ -240,12 +248,21 @@ export default function RootLayout() {
         <Stack.Screen name="messages/[id]"   options={{ headerShown: true, title: 'Conversation' }} />
         <Stack.Screen name="notifications"    options={{ headerShown: true, title: 'Notifications' }} />
         <Stack.Screen name="trips/[id]"       options={{ headerShown: true, title: 'Trip Details' }} />
-        <Stack.Screen name="trips/create"     options={{ headerShown: true, title: 'Create Trip' }} />
-        <Stack.Screen name="profile/edit"     options={{ headerShown: true, title: 'Edit Profile' }} />
-        <Stack.Screen name="buddies/requests" options={{ headerShown: true, title: 'Buddy Requests' }} />
+        <Stack.Screen name="trips/create"          options={{ headerShown: true, title: 'Create Trip' }} />
+        <Stack.Screen name="profile/edit"          options={{ headerShown: true, title: 'Edit Profile' }} />
+        <Stack.Screen name="buddies/requests"      options={{ headerShown: true, title: 'Buddy Requests' }} />
+        <Stack.Screen name="kyc"                   options={{ headerShown: true, title: 'KYC Verification' }} />
+        <Stack.Screen name="profile/my-trips"      options={{ headerShown: true, title: 'My Trips' }} />
+        <Stack.Screen name="profile/travel-dna"    options={{ headerShown: true, title: 'Travel DNA' }} />
+        <Stack.Screen name="profile/achievements"  options={{ headerShown: true, title: 'Achievements' }} />
+        <Stack.Screen name="profile/bucket-list"   options={{ headerShown: true, title: 'Bucket List' }} />
+        <Stack.Screen name="profile/settings"      options={{ headerShown: true, title: 'Settings' }} />
+        <Stack.Screen name="trips/[id]/expenses"   options={{ headerShown: true, title: 'Expenses' }} />
       </Stack>
 
       {!startupDone && <StartupOverlay onDone={() => setStartupDone(true)} />}
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
