@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   ActivityIndicator, Alert, Modal, TextInput, Image as RNImage,
 } from 'react-native';
-import { Image } from 'expo-image';
+
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile } from '../api/api';

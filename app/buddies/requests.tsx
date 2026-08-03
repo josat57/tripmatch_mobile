@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
-import { Image } from 'expo-image';
+
 import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Buddy } from '../../src/api/api';

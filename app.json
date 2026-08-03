@@ -56,8 +56,7 @@
         {
           "locationWhenInUsePermission": "Allow TripMatch to use your location to find trips near you."
         }
-      ],
-      "expo-image"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

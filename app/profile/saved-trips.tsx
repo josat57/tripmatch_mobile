@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
-import { Image } from 'expo-image';
+
 import { router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Feed } from '../../src/api/api';
