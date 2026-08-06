@@ -1,20 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Linking } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 import { Trips } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
-
-interface TripLocation {
-  address?: {
-    street?: string;
-    city?: string;
-    country?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-}
 
 export default function TripLocationScreen() {
   const { id, tripTitle } = useLocalSearchParams<{ id: string; tripTitle?: string }>();
@@ -53,23 +42,27 @@ export default function TripLocationScreen() {
   const lng = location?.longitude;
   const hasCoordinates = lat && lng;
 
-  const mapUrl = hasCoordinates
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
-    : null;
+  const openMap = async () => {
+    if (!hasCoordinates) return;
+    const url = `https://maps.google.com/?q=${lat},${lng}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'Could not open map');
+    }
+  };
 
   return (
     <>
       <Stack.Screen options={{ title: tripTitle || 'Trip Location' }} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Map View */}
-        {mapUrl && (
-          <View style={styles.mapContainer}>
-            <WebView
-              source={{ uri: mapUrl }}
-              style={styles.map}
-              scrollEnabled={false}
-            />
-          </View>
+        {/* Map Button */}
+        {hasCoordinates && (
+          <TouchableOpacity style={styles.mapButton} onPress={openMap}>
+            <Ionicons name="map" size={24} color={Colors.white} />
+            <Text style={styles.mapButtonText}>Open Map</Text>
+          </TouchableOpacity>
         )}
 
         {/* Location Details */}
@@ -118,10 +111,10 @@ export default function TripLocationScreen() {
           )}
         </View>
 
-        {/* Map Attribution */}
-        {mapUrl && (
+        {/* Coordinates Attribution */}
+        {hasCoordinates && (
           <Text style={styles.attribution}>
-            Map data © OpenStreetMap contributors
+            Coordinates: {lat?.toFixed(6)}, {lng?.toFixed(6)}
           </Text>
         )}
       </ScrollView>
@@ -133,6 +126,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.mist },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mapButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  mapButtonText: {
+    fontSize: 16,
+    fontFamily: Fonts.heading,
+    color: Colors.white,
+  },
   mapContainer: {
     backgroundColor: Colors.white,
     borderRadius: 12,
