@@ -7,7 +7,7 @@ import {
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Trips } from '../../src/api/api';
+import { Trips, KYC } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 import DatePickerModal from '../../src/components/DatePickerModal';
 
@@ -60,6 +60,32 @@ export default function CreateTripScreen() {
     setStyles2((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
 
   const handleCreate = async () => {
+    // Check KYC verification before creating trip
+    try {
+      const kycStatus = await KYC.getStatus() as any;
+      if (kycStatus?.status !== 'approved') {
+        Alert.alert(
+          'Identity Verification Required',
+          'You must complete identity verification before creating a trip. This helps build trust in our community.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Verify Now', onPress: () => router.push('/kyc') },
+          ]
+        );
+        return;
+      }
+    } catch {
+      Alert.alert(
+        'Identity Verification Required',
+        'You must complete identity verification before creating a trip.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Verify Now', onPress: () => router.push('/kyc') },
+        ]
+      );
+      return;
+    }
+
     if (!title.trim()) {
       Alert.alert('Missing info', 'Please enter a trip title.');
       return;
