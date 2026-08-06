@@ -1,49 +1,76 @@
-import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-native';
 import { Stack } from 'expo-router';
-import { WebView } from 'react-native-webview';
-import { Colors } from '../../src/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Fonts } from '../../src/theme';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.tripmatch.online/api';
 
 export default function PrivacyPolicyScreen() {
-  const [loading, setLoading] = useState(true);
-  const [html, setHtml] = useState('');
-
   useEffect(() => {
-    loadPrivacyPolicy();
+    openPrivacyPolicy();
   }, []);
 
-  const loadPrivacyPolicy = async () => {
+  const openPrivacyPolicy = async () => {
     try {
       const baseUrl = BACKEND_URL.replace('/api', '');
-      const response = await fetch(`${baseUrl}/legal/privacy`);
-      if (!response.ok) throw new Error('Failed to load privacy policy');
-      const content = await response.text();
-      setHtml(content);
+      const url = `${baseUrl}/legal/privacy`;
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open privacy policy URL');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Could not load privacy policy. Please check your internet connection.');
-      console.error('Error loading privacy policy:', error);
-    } finally {
-      setLoading(false);
+      Alert.alert('Error', 'Could not open privacy policy.');
     }
   };
 
   return (
     <>
       <Stack.Screen options={{ title: 'Privacy Policy', headerShown: true }} />
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.mist }}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      ) : (
-        <WebView
-          source={{ html }}
-          style={{ flex: 1 }}
-          scalesPageToFit={true}
-          originWhitelist={['*']}
-        />
-      )}
+      <View style={styles.container}>
+        <Ionicons name="document-text" size={64} color={Colors.primary} />
+        <Text style={styles.text}>Privacy Policy</Text>
+        <Text style={styles.subtitle}>Opening in your browser...</Text>
+        <TouchableOpacity style={styles.button} onPress={openPrivacyPolicy}>
+          <Text style={styles.buttonText}>Open Privacy Policy</Text>
+        </TouchableOpacity>
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.mist,
+    padding: 20,
+  },
+  text: {
+    fontSize: 20,
+    fontFamily: Fonts.heading,
+    color: Colors.textDark,
+    marginTop: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: Fonts.body,
+    color: Colors.textMuted,
+    marginTop: 8,
+  },
+  button: {
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+  },
+  buttonText: {
+    fontSize: 14,
+    fontFamily: Fonts.heading,
+    color: Colors.white,
+  },
+});

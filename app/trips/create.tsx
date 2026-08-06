@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
 } from 'react-native';
 
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Trips } from '../../src/api/api';
+import { Trips, KYC } from '../../src/api/api';
 import { Colors, Fonts } from '../../src/theme';
 import DatePickerModal from '../../src/components/DatePickerModal';
+import TripCreationPolicyModal, { getTripPolicyAccepted } from '../../src/components/TripCreationPolicyModal';
 
 const CATEGORIES = ['Adventure', 'Relaxation', 'Cultural', 'Business', 'Educational', 'Other'];
 const TRAVEL_STYLES = ['Adventure', 'Cultural', 'Luxury', 'Budget', 'Backpacking', 'Beach', 'Hiking', 'Wellness'];
@@ -24,6 +25,8 @@ function formatDate(d: Date) {
 
 export default function CreateTripScreen() {
   const [loading, setLoading] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [policyLoading, setPolicyLoading] = useState(true);
 
   const [coverUri, setCoverUri]       = useState<string | null>(null);
   const [title, setTitle]             = useState('');
@@ -38,6 +41,25 @@ export default function CreateTripScreen() {
   const [maxPax, setMaxPax]           = useState('');
   const [category, setCategory]       = useState('');
   const [styles2, setStyles2]         = useState<string[]>([]);
+
+  // Check if trip creator policy was accepted on mount
+  useEffect(() => {
+    checkPolicyAcceptance();
+  }, []);
+
+  const checkPolicyAcceptance = async () => {
+    try {
+      const accepted = await getTripPolicyAccepted();
+      if (!accepted) {
+        setShowPolicyModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking policy acceptance:', error);
+      setShowPolicyModal(true);
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
 
   const pickCoverImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -60,6 +82,32 @@ export default function CreateTripScreen() {
     setStyles2((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
 
   const handleCreate = async () => {
+    // Check KYC verification before creating trip
+    try {
+      const kycStatus = await KYC.getStatus() as any;
+      if (kycStatus?.status !== 'approved') {
+        Alert.alert(
+          'Identity Verification Required',
+          'You must complete identity verification before creating a trip. This helps build trust in our community.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Verify Now', onPress: () => router.push('/kyc') },
+          ]
+        );
+        return;
+      }
+    } catch {
+      Alert.alert(
+        'Identity Verification Required',
+        'You must complete identity verification before creating a trip.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Verify Now', onPress: () => router.push('/kyc') },
+        ]
+      );
+      return;
+    }
+
     if (!title.trim()) {
       Alert.alert('Missing info', 'Please enter a trip title.');
       return;
@@ -120,9 +168,28 @@ export default function CreateTripScreen() {
     }
   };
 
+  if (policyLoading) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Create Trip', headerShown: true }} />
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ title: 'Create Trip', headerShown: true }} />
+
+      {/* Trip Creator Policy Modal */}
+      <TripCreationPolicyModal
+        isOpen={showPolicyModal}
+        onClose={() => router.back()}
+        onEligibilityMet={() => setShowPolicyModal(false)}
+      />
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -136,7 +203,7 @@ export default function CreateTripScreen() {
             accessibilityLabel="Pick cover photo"
           >
             {coverUri ? (
-              <Image source={{ uri: coverUri }} style={styles.coverImage} contentFit="cover" />
+              <Image source={{ uri: coverUri }} style={styles.coverImage} resizeMode="cover" />
             ) : (
               <View style={styles.coverPlaceholder}>
                 <Ionicons name="image-outline" size={32} color={Colors.textLight} />

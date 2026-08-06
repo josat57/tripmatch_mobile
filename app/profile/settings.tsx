@@ -5,11 +5,12 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Auth, Users, Security } from '../../src/api/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors, Fonts } from '../../src/theme';
 
-type Section = 'main' | 'password' | 'notifications' | 'privacy' | 'twofa' | 'danger';
+type Section = 'main' | 'password' | 'notifications' | 'privacy' | 'twofa' | 'danger' | 'development';
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
@@ -108,6 +109,15 @@ export default function SettingsScreen() {
       Alert.alert('Error', (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Could not disable 2FA.');
     } finally {
       setTwoFALoading(false);
+    }
+  };
+
+  const handleResetTripCreatorPolicy = async () => {
+    try {
+      await AsyncStorage.removeItem('tm_trip_policy_v1');
+      Alert.alert('Success', 'Trip Creator Policy acceptance has been reset. The policy modal will show again on next visit to Create Trip.');
+    } catch {
+      Alert.alert('Error', 'Could not reset policy acceptance.');
     }
   };
 
@@ -287,7 +297,8 @@ export default function SettingsScreen() {
           { icon: 'card-outline', label: 'KYC Verification',                 onPress: () => router.push('/kyc' as never) },
           { icon: 'document-text-outline', label: 'Privacy Policy',          onPress: () => router.push('/profile/privacy-policy' as never) },
           { icon: 'document-outline', label: 'Terms of Service',             onPress: () => router.push('/profile/terms' as never) },
-        ].map(({ icon, label, onPress }) => (
+          { icon: 'refresh-outline', label: 'Reset Trip Creator Policy',     onPress: handleResetTripCreatorPolicy, dev: true },
+        ].map(({ icon, label, onPress, dev }: any) => (
           <TouchableOpacity key={label} style={styles.menuItem} onPress={onPress}>
             <Ionicons name={icon as React.ComponentProps<typeof Ionicons>['name']} size={20} color={Colors.textBody} />
             <Text style={styles.menuLabel}>{label}</Text>

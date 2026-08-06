@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Modal, TouchableOpacity, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { WebView } from 'react-native-webview';
-import type { WebViewMessageEvent } from 'react-native-webview';
-import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { Payments } from '../api/api';
 import { Colors, Fonts } from '../theme';
 
@@ -33,8 +31,6 @@ export default function PaymentWebView({
   onClose,
   onSuccess,
 }: PaymentWebViewProps) {
-  const webViewRef = useRef<WebView | null>(null);
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
   const getPaymentPageUrl = () => {
@@ -52,31 +48,12 @@ export default function PaymentWebView({
     return `${baseUrl}/payment/checkout?${params.toString()}`;
   };
 
-  const handleWebViewMessage = (event: WebViewMessageEvent) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-
-      if (data.type === 'payment_success') {
-        handlePaymentSuccess(data.transactionId);
-      } else if (data.type === 'payment_error') {
-        Alert.alert('Payment Failed', data.message || 'An error occurred during payment.');
-        setProcessing(false);
-      } else if (data.type === 'payment_close') {
-        onClose();
-      }
-    } catch (error) {
-      console.error('Error parsing WebView message:', error);
-    }
-  };
-
   const handlePaymentSuccess = async (transactionId: string) => {
     setProcessing(true);
     try {
-      // For Flutterwave, verify the transaction
       if (provider === 'flutterwave') {
         await Payments.verifyBadge(transactionId);
       }
-      // For Stripe, webhook handles verification, but we can close the modal
       onSuccess();
       onClose();
     } catch (error) {
@@ -90,109 +67,87 @@ export default function PaymentWebView({
     }
   };
 
+  const openPayment = async () => {
+    try {
+      const url = getPaymentPageUrl();
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      }
+      onClose();
+    } catch (error) {
+      Alert.alert('Error', 'Could not open payment page.');
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      openPayment();
+    }
+  }, [visible]);
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} disabled={processing}>
-            <Ionicons name="chevron-back" size={28} color={Colors.textDark} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>
             {provider === 'stripe' ? 'Pay with Card' : 'Pay with Flutterwave'}
           </Text>
-          <View style={{ width: 28 }} />
+          <Text style={styles.subtitle}>
+            Opening payment page in your browser...
+          </Text>
+          <ActivityIndicator size="large" color={Colors.primary} style={styles.loader} />
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose} disabled={processing}>
+            <Text style={styles.closeBtnText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* WebView */}
-        {visible && (
-          <WebView
-            ref={webViewRef as any}
-            source={{ uri: getPaymentPageUrl() }}
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => setLoading(false)}
-            onMessage={handleWebViewMessage}
-            style={styles.webview}
-            javaScriptEnabled
-            scalesPageToFit
-            scrollEnabled
-            bounces={false}
-          />
-        )}
-
-        {/* Loading Indicator */}
-        {loading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading payment...</Text>
-          </View>
-        )}
-
-        {/* Processing Indicator */}
-        {processing && (
-          <View style={styles.processingOverlay}>
-            <ActivityIndicator size="large" color={Colors.white} />
-            <Text style={styles.processingText}>Processing...</Text>
-          </View>
-        )}
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: Colors.white,
-    marginTop: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: Fonts.heading,
-    color: Colors.textDark,
-  },
-  webview: {
-    flex: 1,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
-  loadingText: {
-    marginTop: 12,
+  container: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 300,
+  },
+  title: {
+    fontSize: 18,
+    fontFamily: Fonts.heading,
+    color: Colors.textDark,
+    marginBottom: 8,
+  },
+  subtitle: {
     fontSize: 14,
     fontFamily: Fonts.body,
     color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  processingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  loader: {
+    marginBottom: 20,
   },
-  processingText: {
-    marginTop: 12,
+  closeBtn: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.mist,
+    borderRadius: 8,
+  },
+  closeBtnText: {
     fontSize: 14,
-    fontFamily: Fonts.body,
-    color: Colors.white,
+    fontFamily: Fonts.heading,
+    color: Colors.textDark,
   },
 });
