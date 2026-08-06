@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "io.tripmatch.app"
+      "bundleIdentifier": "io.tripmatch.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "io.tripmatch.app",
@@ -29,7 +32,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "versionCode": 7
+      "versionCode": 12
     },
     "web": {
       "bundler": "metro",
