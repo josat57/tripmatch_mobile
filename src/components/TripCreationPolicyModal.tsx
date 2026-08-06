@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Modal, ScrollView, TouchableOpacity, Text, StyleSheet,
-  Alert, ActivityIndicator, CheckBox,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -12,6 +12,19 @@ import { Colors, Fonts } from '../theme';
 import TripPolicyContent from './TripPolicyContent';
 
 const POLICY_KEY = 'tm_trip_policy_v1';
+
+// Custom checkbox component
+function Checkbox({ value, onValueChange }: { value: boolean; onValueChange: (val: boolean) => void }) {
+  return (
+    <TouchableOpacity
+      onPress={() => onValueChange(!value)}
+      style={[styles.checkbox, value && styles.checkboxChecked]}
+      activeOpacity={0.7}
+    >
+      {value && <Ionicons name="checkmark" size={16} color={Colors.white} />}
+    </TouchableOpacity>
+  );
+}
 
 export async function getTripPolicyAccepted(): Promise<boolean> {
   try {
@@ -144,30 +157,27 @@ export default function TripCreationPolicyModal({
       case 'email':
         Alert.alert(
           'Email Verification Required',
-          'Please verify your email address before creating a trip.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Verify Email', onPress: () => router.push('/verify-email') },
-          ]
+          'Your account email must be verified before creating a trip. Check your inbox for a verification link.',
+          [{ text: 'OK', style: 'cancel' }]
         );
         break;
       case 'profile':
         Alert.alert(
           'Complete Your Profile',
-          'Please complete your profile before creating a trip.',
+          'Please complete your profile (bio, city, interests, travel styles) before creating a trip.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Edit Profile', onPress: () => router.push('/profile/edit') },
+            { text: 'Edit Profile', onPress: () => router.push('/(tabs)/profile' as never) },
           ]
         );
         break;
       case 'kyc':
         Alert.alert(
           'Identity Verification Required',
-          'Please verify your identity before creating a trip.',
+          'Please verify your identity (KYC) before creating a trip.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Verify Identity', onPress: () => router.push('/kyc') },
+            { text: 'Verify Identity', onPress: () => router.push('/kyc' as never) },
           ]
         );
         break;
@@ -207,11 +217,7 @@ export default function TripCreationPolicyModal({
         {/* Acceptance Section */}
         <View style={styles.footer}>
           <View style={styles.checkboxSection}>
-            <CheckBox
-              value={hasAccepted}
-              onValueChange={setHasAccepted}
-              tintColors={{ true: Colors.primary, false: Colors.textMuted }}
-            />
+            <Checkbox value={hasAccepted} onValueChange={setHasAccepted} />
             <Text style={styles.checkboxText}>
               I have read and understood the TripMatch Trip Creator Policy. I agree to uphold these standards and
               understand that violations may result in my trip being removed or my account being suspended.
@@ -248,6 +254,20 @@ function checkProfileComplete(profile: any): boolean {
 }
 
 const styles = StyleSheet.create({
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.textMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.mist,
