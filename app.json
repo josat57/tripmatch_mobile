@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E2820"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.tripmatch.app",
@@ -21,7 +16,6 @@
     },
     "android": {
       "package": "io.tripmatch.app",
-      "usesCleartextTraffic": false,
       "adaptiveIcon": {
         "backgroundColor": "#1E2820",
         "foregroundImage": "./assets/android-icon-foreground.png",
